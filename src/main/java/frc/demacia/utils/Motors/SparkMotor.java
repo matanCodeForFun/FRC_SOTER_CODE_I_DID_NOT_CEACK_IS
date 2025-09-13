@@ -132,7 +132,7 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   public void setVelocity(double velocity, double feedForward) {
     super.closedLoopController.setReference(velocity, ControlType.kMAXMotionVelocityControl, slot, feedForward);
     controlType = ControlType.kMAXMotionVelocityControl;
-    lastControlMode = "Velocity Control";
+    lastControlMode = "Velocity";
     setPoint = velocity;
   }
 
@@ -143,7 +143,7 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   public void setPositionVoltage(double position, double feedForward) {
     super.closedLoopController.setReference(position, ControlType.kPosition, slot, feedForward);
     controlType = ControlType.kPosition;
-    lastControlMode = "Position Control";
+    lastControlMode = "Position";
     setPoint = position;
   }
 

@@ -7,7 +7,7 @@ import com.ctre.phoenix6.CANBus;
  * Contains common fields and methods shared between different motor controller types
  */
 public abstract class BaseMotorConfig<T extends BaseMotorConfig<T>> {
-
+    
     public static enum Canbus { Rio("rio"), CANIvore("CANIvore");
     
         public CANBus canbus;
@@ -16,7 +16,7 @@ public abstract class BaseMotorConfig<T extends BaseMotorConfig<T>> {
         }
     } 
 
-    public static enum MotorControllerType { TalonFX, SparkMax};
+    public static enum MotorControllerType {TalonFX, SparkMax, SparkFlex, TalonSRX, VictorSPX};
 
     public int id;                  // CAN bus ID
     public Canbus canbus = Canbus.Rio;

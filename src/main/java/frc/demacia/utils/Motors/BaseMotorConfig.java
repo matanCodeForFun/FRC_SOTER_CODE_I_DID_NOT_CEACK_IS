@@ -8,7 +8,7 @@ import com.ctre.phoenix6.CANBus;
  */
 public abstract class BaseMotorConfig<T extends BaseMotorConfig<T>> {
     
-    public static enum Canbus { Rio("rio"), CANIvore("CANIvore");
+    public static enum Canbus { Rio("rio"), CANIvore("canivore");
     
         public CANBus canbus;
         private Canbus(String name) {
@@ -16,7 +16,7 @@ public abstract class BaseMotorConfig<T extends BaseMotorConfig<T>> {
         }
     } 
 
-    public static enum MotorControllerType {TalonFX, SparkMax, SparkFlex, TalonSRX, VictorSPX};
+    public static enum MotorControllerType {TalonFX, SparkMax, SparkFlex, TalonSRX};
 
     public int id;                  // CAN bus ID
     public Canbus canbus = Canbus.Rio;

@@ -52,8 +52,6 @@ public class TalonMotor extends TalonFX implements MotorInterface {
     Data<Voltage> voltageSignal;
     Data<Current> currentSignal;
 
-    String lastControlMode;
-
     public TalonMotor(TalonConfig config) {
         super(config.id, config.canbus.canbus);
         this.config = config;
@@ -160,14 +158,28 @@ public class TalonMotor extends TalonFX implements MotorInterface {
 
     private void addLog() {
         LogManager.addEntry(name + "/Position and Velocity and Acceleration and Voltage and Current and CloseLoopError and CloseLoopSP",  new StatusSignal[] {
-      getPosition(),
-      getVelocity(),
-      getAcceleration(),
-      getMotorVoltage(),
-      getStatorCurrent(),
-      getClosedLoopError(),
-      getClosedLoopReference(),
-  }, 2,"motor");
+            positionSignal.getSignal(),
+            velocitySignal.getSignal(),
+            accelerationSignal.getSignal(),
+            voltageSignal.getSignal(),
+            currentSignal.getSignal(),
+            closedLoopErrorSignal.getSignal(),
+            closedLoopSPSignal.getSignal(),
+            }, 3,"motor");
+        // LogManager.addEntry(name + "/Position and Velocity and Acceleration and Voltage and Current and CloseLoopError and CloseLoopSP2", 
+        //   () -> new double[] {
+        //     getCurrentPosition(),
+        //     getCurrentVelocity(),
+        //     getCurrentAcceleration(),
+        //     getCurrentVoltage(),
+        //     getCurrentCurrent(),
+        //     getCurrentClosedLoopError(),
+        //     getCurrentClosedLoopSP(),
+        //   }, 3, "motor");
+            // LogManager.addEntry(name + "/ControlMode2", 
+            // () -> getCurrentControlMode(), 3, "motor");
+            LogManager.addEntry(name + "/ControlMode", 
+            controlModeSignal.getSignal(), 3, "motor");
     }
 
     public void checkElectronics() {
@@ -209,12 +221,10 @@ public class TalonMotor extends TalonFX implements MotorInterface {
      */
     public void setDuty(double power) {
         setControl(dutyCycle.withOutput(power));
-        lastControlMode = "Duty Cycle";
     }
 
     public void setVoltage(double voltage) {
         setControl(voltageOut.withOutput(voltage));
-        lastControlMode = "Voltage";
     }
 
     /**
@@ -227,7 +237,6 @@ public class TalonMotor extends TalonFX implements MotorInterface {
      */
     public void setVelocity(double velocity, double feedForward) {
         setControl(velocityVoltage.withVelocity(velocity/unitMultiplier).withFeedForward(feedForward));
-        lastControlMode = "Velocity";
     }
 
     public void setVelocity(double velocity) {
@@ -247,7 +256,6 @@ public class TalonMotor extends TalonFX implements MotorInterface {
      */
     public void setMotion(double position, double feedForward) {
         setControl(motionMagicExpoVoltage.withPosition(position/unitMultiplier).withFeedForward(feedForward));  
-        lastControlMode = "Position";
     }
 
     public void setMotion(double position) {
@@ -293,31 +301,26 @@ public class TalonMotor extends TalonFX implements MotorInterface {
     }
 
     public double getCurrentClosedLoopSP() {
-        closedLoopSPSignal.refresh();
         Double value = closedLoopSPSignal.getDouble();
         return value != null ? value * unitMultiplier : 0.0;
     }
     
     public double getCurrentClosedLoopError() {
-        closedLoopErrorSignal.refresh();
         Double value = closedLoopErrorSignal.getDouble();
         return value != null ? value * unitMultiplier : 0.0;
     }
     
     public double getCurrentPosition() {
-        positionSignal.refresh();
         Double value = positionSignal.getDouble();
         return value != null ? value * unitMultiplier : 0.0;
     }
     
     public double getCurrentVelocity() {
-        velocitySignal.refresh();
         Double value = velocitySignal.getDouble();
         return value != null ? value * unitMultiplier : 0.0;
     }
     
     public double getCurrentAcceleration() {
-        accelerationSignal.refresh();
         Double value = accelerationSignal.getDouble();
         return value != null ? value * unitMultiplier : 0.0;
     }
@@ -332,13 +335,11 @@ public class TalonMotor extends TalonFX implements MotorInterface {
     }
     
     public double getCurrentVoltage() {
-        voltageSignal.refresh();
         Double value = voltageSignal.getDouble();
         return value != null ? value : 0.0;
     }
     
     public double getCurrentCurrent() {
-        currentSignal.refresh();
         Double value = currentSignal.getDouble();
         return value != null ? value : 0.0;
     }
@@ -368,6 +369,89 @@ public class TalonMotor extends TalonFX implements MotorInterface {
                 config.maxJerk = array[2];
                 configureMotionMagic(true);
             });
+    }
+
+    public void showConfigMotorCommand() {
+        UpdateArray.show(name + " MOTOR CONFIG",
+            new String[] {
+                "Max Current",
+                "Ramp Time (s)",
+                "Max Volt",
+                "Brake (0/1)",
+                "Invert (0/1)",
+                "Motor Ratio",
+                "Slot"
+            },
+            new double[] {
+                config.maxCurrent,
+                config.rampUpTime,
+                config.maxVolt,
+                config.brake ? 1.0 : 0.0,
+                config.inverted ? 1.0 : 0.0,
+                config.motorRatio,
+                slot
+            },
+            (double[] array) -> {
+                config.withCurrent(array[0])
+                      .withRampTime(array[1])
+                      .withVolts(array[2])
+                      .withBrake(array[3] > 0.5)
+                      .withInvert(array[4] > 0.5);
+    
+                config.motorRatio = array[5];
+    
+                configMotor();
+                changeSlot(slot);
+    
+                System.out.println("[HOT RELOAD] Motor config updated for " + name);
+            }
+        );
+    }
+
+    public void showControlCommand() {
+        UpdateArray.show(name + " CONTROL",
+            new String[] {
+                "ControlMode (0=Duty, 1=Voltage, 2=Velocity, 3=MotionMagic, 4=angle, 5=positionVoltage, 6=velocityWithFeedForward, 7=motionWithFeedForward)",
+                "Value"
+            },
+            new double[] {
+                0, // default control mode: Duty
+                0  // default value
+            },
+            (double[] array) -> {
+                int mode = (int) array[0];
+                double value = array[1];
+    
+                switch (mode) {
+                    case 0: // Duty cycle [-1, 1]
+                        setDuty(value);
+                        break;
+                    case 1: // Voltage
+                        setVoltage(value);
+                        break;
+                    case 2: // Velocity
+                        setVelocity(value);
+                        break;
+                    case 3: // MotionMagic
+                        setMotion(value);
+                        break;
+                    case 4: // angle
+                        setAngle(value);
+                        break;
+                    case 5: // positionVoltage
+                        setPositionVoltage(value);
+                        break;
+                    case 6: // velocityWithFeedForward
+                        setVelocityWithFeedForward(value);
+                        break;
+                    case 7: // MotionMagic
+                        setMotionWithFeedForward(value);
+                        break;
+                    default:
+                        System.out.println("[CONTROL] Invalid mode: " + mode);
+                }
+            }
+        );
     }
 
     /**
@@ -407,25 +491,25 @@ public class TalonMotor extends TalonFX implements MotorInterface {
     public void setEncoderPosition(double position) {
       setPosition(position / unitMultiplier);   
     }
-    public Data<Double> getClosedLoopErrorSignal() {
+    public Data<Double> getClosedLoopErrorgetSignal() {
         return closedLoopErrorSignal;
     }
-    public Data<Double> getClosedLoopSPSignal() {
+    public Data<Double> getClosedLoopSPgetSignal() {
         return closedLoopSPSignal;
     }
-    public Data<Angle> getPositionSignal() {
+    public Data<Angle> getPositiongetSignal() {
         return positionSignal;
     }
-    public Data<AngularVelocity> getVelocitySignal() {
+    public Data<AngularVelocity> getVelocitygetSignal() {
         return velocitySignal;
     }
-    public Data<AngularAcceleration> getAccelerationSignal() {
+    public Data<AngularAcceleration> getAccelerationgetSignal() {
         return accelerationSignal;
     }
-    public Data<Voltage> getVoltageSignal() {
+    public Data<Voltage> getVoltagegetSignal() {
         return voltageSignal;
     }
-    public Data<Current> getCurrentSignal() {
+    public Data<Current> getCurrentgetSignal() {
         return currentSignal;
     }
 }

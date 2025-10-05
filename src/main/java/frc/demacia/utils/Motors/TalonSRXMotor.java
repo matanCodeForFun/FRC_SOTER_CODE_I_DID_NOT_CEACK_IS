@@ -19,7 +19,7 @@ public class TalonSRXMotor extends TalonSRX implements MotorInterface,Sendable {
 
     int slot = 0;
 
-    String lastControlMode;
+    String lastControlMode="";
 
     public TalonSRXMotor(TalonConfig config) {
         super(config.id);
@@ -73,13 +73,16 @@ public class TalonSRXMotor extends TalonSRX implements MotorInterface,Sendable {
     }
 
     private void addLog() {
-        LogManager.addEntry(name + "/Position and Velocity and Voltage and Current", 
-                () -> new double[] {
-                    getCurrentPosition(),
-                    getCurrentVelocity(), 
-                    getCurrentVoltage(),
-                    getCurrentCurrent()
-                }, 2, "motor");
+      LogManager.addEntry(name + "/Position and Velocity and Acceleration and Voltage and Current and CloseLoopError and CloseLoopSP2", 
+        () -> new double[] {
+          getCurrentPosition(),
+          getCurrentVelocity(),
+          getCurrentAcceleration(),
+          getCurrentVoltage(),
+          getCurrentCurrent(),
+          getCurrentClosedLoopError(),
+          getCurrentClosedLoopSP(),
+        }, 3, "motor");
     }
 
     public void changeSlot(int slot){
@@ -127,6 +130,7 @@ public class TalonSRXMotor extends TalonSRX implements MotorInterface,Sendable {
     
     public void setAngle(double angle, double feedForward) {
       setMotion(MotorUtils.getPositionForAngle(getCurrentPosition(), angle, config.isRadiansMotor), feedForward);
+      lastControlMode = "Angle";
     }
     
     public void setAngle(double angle) {
@@ -137,6 +141,7 @@ public class TalonSRXMotor extends TalonSRX implements MotorInterface,Sendable {
     public void setPositionVoltage(double position, double feedForward) {
         selectProfileSlot(slot, 0);
         set(ControlMode.Position, position / config.motorRatio, DemandType.ArbitraryFeedForward, feedForward / 12.0);
+        lastControlMode = "Position Voltage";
     }
 
     @Override
@@ -161,7 +166,7 @@ public class TalonSRXMotor extends TalonSRX implements MotorInterface,Sendable {
     }
 
     public String getCurrentControlMode(){
-        return lastControlMode.toString();
+        return lastControlMode;
     }@Override
     public double getCurrentClosedLoopSP() {
         return getClosedLoopTarget(0) * config.motorRatio;
@@ -212,28 +217,110 @@ public class TalonSRXMotor extends TalonSRX implements MotorInterface,Sendable {
         setSelectedSensorPosition(position / config.motorRatio);
     }
 
-    @Override
+    /**
+     * creates a widget in elastic of the pid and ff for hot reload
+     * 
+     * @param slot the slot of the close loop perams (from 0 to 2)
+     */
     public void showConfigPIDFSlotCommand(int slot) {
         CloseLoopParam p = config.pid[slot];
-        if (p != null) {
-            UpdateArray.show(name + " PID " + slot, CloseLoopParam.names, p.toArray(), 
-                (double[] array) -> updatePID());
+        if(p != null) {
+            UpdateArray.show(name + " PID " + slot , CloseLoopParam.names, p.toArray(),(double[] array)->updatePID());
         }
     }
 
-    @Override
+    /**
+     * creates a widget in elastic to configure motion magic in hot reload
+     */
     public void showConfigMotionVelocitiesCommand() {
-        UpdateArray.show(name + " MOTION PARAM",
-            new String[] {"Velocity", "Acceleration"},
-            new double[] {config.maxVelocity, config.maxAcceleration},
-            (double[] array) -> {
+        UpdateArray.show(name + "MOTION PARAM",
+            new String[] {"Velocity", "Acceleration", "Jerk"},
+            new double[] {config.maxVelocity, config.maxAcceleration, config.maxJerk},
+            (double[] array)->{
                 config.maxVelocity = array[0];
                 config.maxAcceleration = array[1];
-                configMotionCruiseVelocity(config.maxVelocity / config.motorRatio);
-                configMotionAcceleration(config.maxAcceleration / config.motorRatio);
+                config.maxJerk = array[2];
             });
     }
 
+    public void showConfigMotorCommand() {
+        UpdateArray.show(name + " MOTOR CONFIG",
+            new String[] {
+                "Max Current",
+                "Ramp Time (s)",
+                "Max Volt",
+                "Brake (0/1)",
+                "Invert (0/1)",
+                "Motor Ratio"
+            },
+            new double[] {
+                config.maxCurrent,
+                config.rampUpTime,
+                config.maxVolt,
+                config.brake ? 1.0 : 0.0,
+                config.inverted ? 1.0 : 0.0,
+                config.motorRatio
+            },
+            (double[] array) -> {
+                config.withCurrent(array[0])
+                      .withRampTime(array[1])
+                      .withVolts(array[2])
+                      .withBrake(array[3] > 0.5)
+                      .withInvert(array[4] > 0.5);
+    
+                config.motorRatio = array[5];
+    
+                configMotor();
+            }
+        );
+    }
+
+    public void showControlCommand() {
+        UpdateArray.show(name + " CONTROL",
+            new String[] {
+                "ControlMode (0=Duty, 1=Voltage, 2=Velocity, 3=MotionMagic, 4=angle, 5=positionVoltage, 6=velocityWithFeedForward, 7=motionWithFeedForward)",
+                "Value"
+            },
+            new double[] {
+                0, // default control mode: Duty
+                0  // default value
+            },
+            (double[] array) -> {
+                int mode = (int) array[0];
+                double value = array[1];
+    
+                switch (mode) {
+                    case 0: // Duty cycle [-1, 1]
+                        setDuty(value);
+                        break;
+                    case 1: // Voltage
+                        setVoltage(value);
+                        break;
+                    case 2: // Velocity
+                        setVelocity(value);
+                        break;
+                    case 3: // MotionMagic
+                        setMotion(value);
+                        break;
+                    case 4: // angle
+                        setAngle(value);
+                        break;
+                    case 5: // positionVoltage
+                        setPositionVoltage(value);
+                        break;
+                    case 6: // velocityWithFeedForward
+                        setVelocityWithFeedForward(value);
+                        break;
+                    case 7: // MotionMagic
+                        setMotionWithFeedForward(value);
+                        break;
+                    default:
+                        System.out.println("[CONTROL] Invalid mode: " + mode);
+                }
+            }
+        );
+    }
+   
     @Override
     public void initSendable(SendableBuilder builder) {
         builder.setSmartDashboardType("Talon SRX Motor");

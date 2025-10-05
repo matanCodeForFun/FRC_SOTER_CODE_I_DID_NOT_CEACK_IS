@@ -1,5 +1,6 @@
 package frc.demacia.utils.Sensors;
 
+import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Log.LogManager;
 
 public class AnalogEncoder extends edu.wpi.first.wpilibj.AnalogEncoder implements AnalogSensorInterface{
@@ -21,7 +22,7 @@ public class AnalogEncoder extends edu.wpi.first.wpilibj.AnalogEncoder implement
     }
 
     private void addLog() {
-        LogManager.addEntry(name + "/Position", this::get, 2);
+        LogManager.addEntry(name + "/Position", this::get, 3);
     }
 
     public String getName(){
@@ -35,5 +36,27 @@ public class AnalogEncoder extends edu.wpi.first.wpilibj.AnalogEncoder implement
     @Override
     public double get(){
         return super.get();
+    }
+
+    public void showConfigMotorCommand() {
+        UpdateArray.show(name + " CONFIG",
+            new String[] {
+                "is Inverted (1, 0)",
+                "Offset"
+            }, 
+            new double[] {
+                config.isInverted ? 1.0 : 0.0,
+                config.offset
+            },
+            (double[] array) -> {
+                config.withInvert(array[0] > 0.5)
+                .withOffset(array[1])
+                .withMaxRange(array[2])
+                .withMinRange(array[3])
+                .withFullRange(array[4]);
+                
+                configEncoder();
+            }
+        );
     }
 }

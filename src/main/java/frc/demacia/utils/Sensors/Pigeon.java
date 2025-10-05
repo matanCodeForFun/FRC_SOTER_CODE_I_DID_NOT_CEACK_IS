@@ -6,14 +6,15 @@ import com.ctre.phoenix6.configs.Pigeon2Configuration;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.LinearAcceleration;
+import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Log.LogManager;
 
-import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
 
 public class Pigeon extends Pigeon2 implements SensorInterface{
     PigeonConfig config;
     String name;
+    Pigeon2Configuration pigeonConfig;
 
     StatusSignal<Angle> yawSignal;
     StatusSignal<Angle> pitchSignal;
@@ -45,7 +46,7 @@ public class Pigeon extends Pigeon2 implements SensorInterface{
 		LogManager.log(name + " pigeon initialized");
     }
     private void configPigeon() {
-        Pigeon2Configuration pigeonConfig = new Pigeon2Configuration();
+        pigeonConfig = new Pigeon2Configuration();
         pigeonConfig.MountPose.MountPosePitch = config.pitchOffset;
         pigeonConfig.MountPose.MountPoseRoll = config.rollOffset;
         pigeonConfig.MountPose.MountPoseYaw = config.yawOffset;
@@ -87,17 +88,20 @@ public class Pigeon extends Pigeon2 implements SensorInterface{
     }
 
     private void addLog() {
-        LogManager.addEntry(name + "/yaw and pitch and x velocity and y velocity and z velocity", () -> new StatusSignal[] {
-            yawSignal,
-            pitchSignal,
-            rollSignal,
-            xVelocitySignal,
-            yVelocitySignal,
-            zVelocitySignal,
-            xAccelerationSignal,
-            yAccelerationSignal,
-            zAccelerationSignal
-        }, 2);
+        LogManager.addEntry(name + "/yaw and pitch and x velocity and y velocity and z velocity", () -> new double[] {
+            getCurrentYaw(),
+            getCurrentPitch(),
+            getXVelocity(),
+            getYVelocity(),
+            getZVelocity(),
+            getXAcceleration(),
+            getYAcceleration(),
+            getZAcceleration(),
+            getXAngularAcceleration(),
+            getYAngularAcceleration(),
+            getZAngularAcceleration()
+        }, 3);
+        LogManager.addEntry(name + "/yaw", () -> getYaw() , 3);
     }
 
     public String getName(){
@@ -183,5 +187,37 @@ public class Pigeon extends Pigeon2 implements SensorInterface{
         super.reset();
     }
 
-
+public void showConfigMotorCommand() {
+        UpdateArray.show(name + " CONFIG",
+            new String[] {
+                "pitch Offset",
+                "roll Offset",
+                "yaw Offset",
+                "x Scalar",
+                "y Scalar",
+                "z Scalar",
+                "is Inverted (1, 0)"
+            }, 
+            new double[] {
+                config.pitchOffset,
+                config.rollOffset,
+                config.yawOffset,
+                config.xScalar,
+                config.yScalar,
+                config.zScalar,
+                config.isInverted ? 1.0 : 0.0
+            },
+            (double[] array) -> {
+                config.withPitchOffset(array[0])
+                .withRollOffset(array[1])
+                .withYawOffset(array[2])
+                .withXScalar(array[3])
+                .withYScalar(array[4])
+                .withZScalar(array[5])
+                .withInvert(array[6] > 0.5);
+                
+                configPigeon();
+            }
+        );
+    }
 }

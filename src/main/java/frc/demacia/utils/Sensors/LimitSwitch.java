@@ -1,6 +1,7 @@
 package frc.demacia.utils.Sensors;
 
 import edu.wpi.first.wpilibj.DigitalInput;
+import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Log.LogManager;
 
 public class LimitSwitch extends DigitalInput implements DigitalSensorInterface{
@@ -23,7 +24,7 @@ public class LimitSwitch extends DigitalInput implements DigitalSensorInterface{
     }
 
     private void addLog() {
-        LogManager.addEntry(name + "/isTriggered", this::get, 2);
+        LogManager.addEntry(name + "/isTriggered", this::get, 3);
     }
 
     public String getName(){
@@ -31,6 +32,21 @@ public class LimitSwitch extends DigitalInput implements DigitalSensorInterface{
     }
 
     public boolean get(){
-        return !(inverted == get());
+        return !(inverted == super.get());
+    }
+
+    public void showConfigMotorCommand() {
+        UpdateArray.show(name + " CONFIG",
+            new String[] {
+                "is Inverted (1, 0)"
+            }, 
+            new double[] {
+                config.isInverted ? 1.0 : 0.0
+            },
+            (double[] array) -> {
+                config.withInvert(array[0] > 0.5);
+                configLimitSwitch();
+            }
+        );
     }
 }

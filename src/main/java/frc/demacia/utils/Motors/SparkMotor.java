@@ -22,7 +22,8 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   private SparkConfig config;
   private String name;
   private SparkMaxConfig cfg;
-  private ClosedLoopSlot slot = ClosedLoopSlot.kSlot0;
+  private int slot = 0;
+  private ClosedLoopSlot closedLoopSlot = ClosedLoopSlot.kSlot0;
   private ControlType controlType = ControlType.kDutyCycle;
 
   private String lastControlMode;
@@ -73,13 +74,16 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   }
 
   private void addLog() {
-    LogManager.addEntry(name + "/Position and Velocity and Voltage and Current", 
-            () -> new double[] {
-                getCurrentPosition(),
-                getCurrentVelocity(), 
-                getCurrentVoltage(),
-                getCurrentCurrent()
-            }, 2, "motor");
+    LogManager.addEntry(name + "/Position and Velocity and Acceleration and Voltage and Current and CloseLoopError and CloseLoopSP2", 
+      () -> new double[] {
+        getCurrentPosition(),
+        getCurrentVelocity(),
+        getCurrentAcceleration(),
+        getCurrentVoltage(),
+        getCurrentCurrent(),
+        getCurrentClosedLoopError(),
+        getCurrentClosedLoopSP(),
+      }, 3, "motor");
   }
 
   /**
@@ -93,7 +97,8 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
       LogManager.log("slot is not between 0 and 2", AlertType.kError);
       return;
     }
-    this.slot = slot == 0 ? ClosedLoopSlot.kSlot0 : slot == 1 ? ClosedLoopSlot.kSlot1 : ClosedLoopSlot.kSlot2;
+    this.slot = slot;
+    this.closedLoopSlot = slot == 0 ? ClosedLoopSlot.kSlot0 : slot == 1 ? ClosedLoopSlot.kSlot1 : ClosedLoopSlot.kSlot2;
   }
 
   /*
@@ -130,20 +135,20 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
    *                    defaults to 0
    */
   public void setVelocity(double velocity, double feedForward) {
-    super.closedLoopController.setReference(velocity, ControlType.kMAXMotionVelocityControl, slot, feedForward);
+    super.closedLoopController.setReference(velocity, ControlType.kMAXMotionVelocityControl, closedLoopSlot, feedForward);
     controlType = ControlType.kMAXMotionVelocityControl;
     lastControlMode = "Velocity";
     setPoint = velocity;
   }
 
   public void setVelocity(double velocity) {
-    setVelocity(velocity, config.pid[slot.value].ks()*Math.signum(velocity));
+    setVelocity(velocity, config.pid[closedLoopSlot.value].ks()*Math.signum(velocity));
   }
 
   public void setPositionVoltage(double position, double feedForward) {
-    super.closedLoopController.setReference(position, ControlType.kPosition, slot, feedForward);
+    super.closedLoopController.setReference(position, ControlType.kPosition, closedLoopSlot, feedForward);
     controlType = ControlType.kPosition;
-    lastControlMode = "Position";
+    lastControlMode = "Position Voltage";
     setPoint = position;
   }
 
@@ -161,19 +166,21 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
 
   @Override
   public void setMotion(double position, double feedForward) {
-    super.closedLoopController.setReference(position, ControlType.kMAXMotionPositionControl, slot, feedForward);
+    super.closedLoopController.setReference(position, ControlType.kMAXMotionPositionControl, closedLoopSlot, feedForward);
     controlType = ControlType.kMAXMotionPositionControl;
+    lastControlMode = "Motion";
     setPoint = position;
   }
 
   @Override
   public void setMotion(double position) {
-    setMotion(position, config.pid[slot.value].ks()*Utilities.signumWithDeadband(position - getCurrentPosition(), 0.5));
+    setMotion(position, config.pid[closedLoopSlot.value].ks()*Utilities.signumWithDeadband(position - getCurrentPosition(), 0.5));
   }
 
   @Override
   public void setAngle(double angle, double feedForward) {
     setMotion(MotorUtils.getPositionForAngle(getCurrentPosition(), angle, config.isRadiansMotor), feedForward);
+    lastControlMode = "Angle";
   }
   @Override
   public void setAngle(double angle) {
@@ -184,8 +191,8 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
     return velocity * velocity * Math.signum(velocity) * config.kv2;
   }
 
-  private double positionFeedForward(double positin) {
-    return Math.cos(positin * config.posToRad) * config.kSin;
+  private double positionFeedForward(double position) {
+    return Math.cos(position * config.posToRad) * config.kSin;
   }
 
   @Override
@@ -220,6 +227,89 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
     if (p != null) {
       UpdateArray.show(name + " PID " + slot, CloseLoopParam.names, p.toArray(), (double[] array) -> updatePID(true));
     }
+  }
+
+  public void showConfigMotorCommand() {
+      UpdateArray.show(name + " MOTOR CONFIG",
+          new String[] {
+              "Max Current",
+              "Ramp Time (s)",
+              "Max Volt",
+              "Brake (0/1)",
+              "Invert (0/1)",
+              "Motor Ratio",
+              "Slot"
+          },
+          new double[] {
+              config.maxCurrent,
+              config.rampUpTime,
+              config.maxVolt,
+              config.brake ? 1.0 : 0.0,
+              config.inverted ? 1.0 : 0.0,
+              config.motorRatio,
+              slot
+          },
+          (double[] array) -> {
+              config.withCurrent(array[0])
+                    .withRampTime(array[1])
+                    .withVolts(array[2])
+                    .withBrake(array[3] > 0.5)
+                    .withInvert(array[4] > 0.5);
+  
+              config.motorRatio = array[5];
+              changeSlot(slot);
+  
+              configMotor();
+  
+              System.out.println("[HOT RELOAD] Motor config updated for " + name);
+          }
+      );
+  }
+
+  public void showControlCommand() {
+      UpdateArray.show(name + " CONTROL",
+          new String[] {
+              "ControlMode (0=Duty, 1=Voltage, 2=Velocity, 3=MotionMagic, 4=angle, 5=positionVoltage, 6=velocityWithFeedForward, 7=motionWithFeedForward)",
+              "Value"
+          },
+          new double[] {
+              0, // default control mode: Duty
+              0  // default value
+          },
+          (double[] array) -> {
+              int mode = (int) array[0];
+              double value = array[1];
+  
+              switch (mode) {
+                  case 0: // Duty cycle [-1, 1]
+                      setDuty(value);
+                      break;
+                  case 1: // Voltage
+                      setVoltage(value);
+                      break;
+                  case 2: // Velocity
+                      setVelocity(value);
+                      break;
+                  case 3: // MotionMagic
+                      setMotion(value);
+                      break;
+                  case 4: // angle
+                      setAngle(value);
+                      break;
+                  case 5: // positionVoltage
+                      setPositionVoltage(value);
+                      break;
+                  case 6: // velocityWithFeedForward
+                      setVelocityWithFeedForward(value);
+                      break;
+                  case 7: // MotionMagic
+                      setMotionWithFeedForward(value);
+                      break;
+                  default:
+                      System.out.println("[CONTROL] Invalid mode: " + mode);
+              }
+          }
+      );
   }
 
   public double getCurrentPosition() {

@@ -8,6 +8,7 @@ import com.ctre.phoenix6.signals.SensorDirectionValue;
 
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
+import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Log.LogManager;
 
 public class Cancoder extends CANcoder implements AnalogSensorInterface{
@@ -57,13 +58,12 @@ public class Cancoder extends CANcoder implements AnalogSensorInterface{
     }
 
     private void addLog() {
-
         LogManager.addEntry(name + "Position and Velocity",  () -> new double[] {
             getCurrentAbsPosition(),
-            getCurrentAcceleration(),
-            positionSignal.getValueAsDouble(),
-            velocitySignal.getValueAsDouble()
-        }, 2);
+            getCurrentPosition(),
+            getCurrentVelocity(),
+            getCurrentAcceleration()
+        }, 3);
     }
 
     public String getName(){
@@ -99,5 +99,24 @@ public class Cancoder extends CANcoder implements AnalogSensorInterface{
             return (velocitySignal.getValueAsDouble() * 2 * Math.PI) - lastVelocity;
         }
         return 0;
+    }
+
+    public void showConfigMotorCommand() {
+        UpdateArray.show(name + " CONFIG",
+            new String[] {
+                "is Inverted (1, 0)",
+                "Offset"
+            }, 
+            new double[] {
+                config.isInverted ? 1.0 : 0.0,
+                config.offset
+            },
+            (double[] array) -> {
+                config.withInvert(array[0] > 0.5)
+                .withOffset(array[1]);
+                
+                configCancoder();
+            }
+        );
     }
 }

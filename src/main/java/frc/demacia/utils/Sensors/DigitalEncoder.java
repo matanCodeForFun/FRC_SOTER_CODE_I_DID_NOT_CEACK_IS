@@ -2,6 +2,7 @@ package frc.demacia.utils.Sensors;
 
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
+import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Log.LogManager;
 
 public class DigitalEncoder extends DutyCycleEncoder implements SensorInterface{
@@ -24,7 +25,7 @@ public class DigitalEncoder extends DutyCycleEncoder implements SensorInterface{
     }
 
     private void addLog() {
-        LogManager.addEntry(name + "/Position", this::get, 2);
+        LogManager.addEntry(name + "/Position", this::get, 3);
     }
 
     public String getName(){
@@ -44,5 +45,37 @@ public class DigitalEncoder extends DutyCycleEncoder implements SensorInterface{
 
     public boolean isConnected() {
         return super.isConnected();
+    }
+
+    public void showConfigMotorCommand() {
+        UpdateArray.show(name + " CONFIG",
+            new String[] {
+                "pitch Offset",
+                "roll Offset",
+                "yaw Offset",
+                "x Scalar",
+                "y Scalar",
+                "z Scalar",
+                "is Inverted (1, 0)"
+            }, 
+            new double[] {
+                config.frequency,
+                config.minRange,
+                config.maxRange,
+                config.isInverted ? 1.0 : 0.0,
+                config.offset,
+                config.scalar
+            },
+            (double[] array) -> {
+                config.withFrequency(array[0])
+                .withMinRange(array[1])
+                .withMaxRange(array[2])
+                .withInvert(array[3] > 0.5)
+                .withOffset(array[4])
+                .withScalar(array[5]);
+                
+                configEncoder();
+            }
+        );
     }
 }

@@ -14,7 +14,7 @@ public class PigeonConfig extends BaseSensorConfig<PigeonConfig>{
     public boolean noMotionCalibration = false;
     /** 
      * Constructor
-     * @param id - canbus ID
+     * @param id - canbus ID1
      * @param canbus - Name of canbus
      * @param name - name of Pigeon for logging
      */

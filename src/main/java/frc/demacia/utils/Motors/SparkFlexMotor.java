@@ -1,6 +1,7 @@
 package frc.demacia.utils.Motors;
 
 import com.revrobotics.spark.ClosedLoopSlot;
+import com.revrobotics.spark.SparkAnalogSensor;
 import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkLowLevel;
 import com.revrobotics.spark.config.SparkBaseConfig;
@@ -25,6 +26,7 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
   private int slot = 0;
   private ClosedLoopSlot closedLoopSlot = ClosedLoopSlot.kSlot0;
   private ControlType controlType = ControlType.kDutyCycle;
+  private SparkAnalogSensor anaolg;
 
   private String lastControlMode = "";
   private double lastVelocity;
@@ -58,6 +60,7 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
       cfg.closedLoop.maxMotion.maxVelocity(config.maxVelocity).maxAcceleration(config.maxAcceleration);
     }
     getEncoder();
+    anaolg = getAnalog();
     this.configure(cfg, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
   }
 
@@ -235,8 +238,8 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
               "Max Current",
               "Ramp Time (s)",
               "Max Volt",
-              "Brake (0/1)",
-              "Invert (0/1)",
+              "Brake (0,1)",
+              "Invert (0,1)",
               "Motor Ratio",
               "Slot"
           },
@@ -279,9 +282,9 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
           (double[] array) -> {
               int mode = (int) array[0];
               double value = array[1];
-  
+              
               switch (mode) {
-                  case 0: // Duty cycle [-1, 1]
+                  case 0: // Duty cycle
                       setDuty(value);
                       break;
                   case 1: // Voltage
@@ -313,7 +316,7 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
   }
 
   public double getCurrentPosition() {
-    return encoder.getPosition();
+    return anaolg.getPosition();
   }
 
   public double getCurrentAngle() {

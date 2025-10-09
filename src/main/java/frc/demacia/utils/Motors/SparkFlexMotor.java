@@ -138,8 +138,8 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
    *                    defaults to 0
    */
   public void setVelocity(double velocity, double feedForward) {
-    super.closedLoopController.setReference(velocity, ControlType.kMAXMotionVelocityControl, closedLoopSlot, feedForward);
-    controlType = ControlType.kMAXMotionVelocityControl;
+    super.closedLoopController.setReference(velocity, ControlType.kVelocity, closedLoopSlot, feedForward);
+    controlType = ControlType.kVelocity;
     lastControlMode = "Velocity";
     setPoint = velocity;
   }
@@ -169,6 +169,10 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
 
   @Override
   public void setMotion(double position, double feedForward) {
+    if (config.maxVelocity == 0) {
+      LogManager.log(name + ": Cannot use MotionMagic - maxVelocity not configured", AlertType.kError);
+      return;
+    }
     super.closedLoopController.setReference(position, ControlType.kMAXMotionPositionControl, closedLoopSlot, feedForward);
     controlType = ControlType.kMAXMotionPositionControl;
     lastControlMode = "Motion";

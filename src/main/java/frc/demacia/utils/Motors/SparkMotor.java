@@ -166,6 +166,10 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
 
   @Override
   public void setMotion(double position, double feedForward) {
+    if (config.maxVelocity == 0) {
+      LogManager.log(name + ": Cannot use MotionMagic - maxVelocity not configured", AlertType.kError);
+      return;
+    }
     super.closedLoopController.setReference(position, ControlType.kMAXMotionPositionControl, closedLoopSlot, feedForward);
     controlType = ControlType.kMAXMotionPositionControl;
     lastControlMode = "Motion";

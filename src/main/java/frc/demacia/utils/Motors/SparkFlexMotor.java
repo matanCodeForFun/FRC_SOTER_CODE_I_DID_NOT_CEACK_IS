@@ -2,6 +2,7 @@ package frc.demacia.utils.Motors;
 
 import com.revrobotics.spark.ClosedLoopSlot;
 import com.revrobotics.spark.SparkAnalogSensor;
+import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkLowLevel;
 import com.revrobotics.spark.config.SparkBaseConfig;
@@ -138,8 +139,12 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
    *                    defaults to 0
    */
   public void setVelocity(double velocity, double feedForward) {
-    super.closedLoopController.setReference(velocity, ControlType.kVelocity, closedLoopSlot, feedForward);
-    controlType = ControlType.kVelocity;
+    if (config.maxVelocity == 0) {
+      LogManager.log(name + ": maxVelocity not configured", AlertType.kError);
+      return;
+    }
+    getClosedLoopController().setReference(velocity, ControlType.kMAXMotionVelocityControl, closedLoopSlot, feedForward);
+    controlType = ControlType.kMAXMotionVelocityControl;
     lastControlMode = "Velocity";
     setPoint = velocity;
   }
@@ -149,7 +154,7 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
   }
 
   public void setPositionVoltage(double position, double feedForward) {
-    super.closedLoopController.setReference(position, ControlType.kPosition, closedLoopSlot, feedForward);
+    getClosedLoopController().setReference(position, ControlType.kPosition, closedLoopSlot, feedForward);
     controlType = ControlType.kPosition;
     lastControlMode = "Position Voltage";
     setPoint = position;
@@ -170,14 +175,14 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
   @Override
   public void setMotion(double position, double feedForward) {
     if (config.maxVelocity == 0) {
-      LogManager.log(name + ": Cannot use MotionMagic - maxVelocity not configured", AlertType.kError);
+      LogManager.log(name + ": maxVelocity not configured", AlertType.kError);
       return;
     }
-    super.closedLoopController.setReference(position, ControlType.kMAXMotionPositionControl, closedLoopSlot, feedForward);
+    getClosedLoopController().setReference(position, ControlType.kMAXMotionPositionControl, closedLoopSlot, feedForward).name();
     controlType = ControlType.kMAXMotionPositionControl;
     lastControlMode = "Motion";
     setPoint = position;
-  }
+  } 
 
   @Override
   public void setMotion(double position) {

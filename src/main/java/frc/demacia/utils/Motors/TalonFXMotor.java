@@ -28,9 +28,9 @@ import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Log.LogManager;
 import frc.demacia.utils.Log.LogEntryBuilder.LogLevel;
 
-public class TalonMotor extends TalonFX implements MotorInterface {
+public class TalonFXMotor extends TalonFX implements MotorInterface {
 
-    TalonConfig config;
+    TalonFXConfig config;
     String name;
     TalonFXConfiguration cfg;
 
@@ -53,7 +53,7 @@ public class TalonMotor extends TalonFX implements MotorInterface {
     Data<Voltage> voltageSignal;
     Data<Current> currentSignal;
 
-    public TalonMotor(TalonConfig config) {
+    public TalonFXMotor(TalonFXConfig config) {
         super(config.id, config.canbus.canbus);
         this.config = config;
         name = config.name;
@@ -160,7 +160,7 @@ public class TalonMotor extends TalonFX implements MotorInterface {
 
     @SuppressWarnings("unchecked")
     private void addLog() {
-        LogManager.addEntry(name + "/Position and Velocity and Acceleration and Voltage and Current and CloseLoopError and CloseLoopSP",  new StatusSignal[] {
+        LogManager.addEntry(name + " Position, Velocity, Acceleration, Voltage, Current, CloseLoopError, CloseLoopSP",  new StatusSignal[] {
             positionSignal.getSignal(),
             velocitySignal.getSignal(),
             accelerationSignal.getSignal(),
@@ -170,8 +170,8 @@ public class TalonMotor extends TalonFX implements MotorInterface {
             closedLoopSPSignal.getSignal(),
             }).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP)
             .WithIsMotor().build();
-        LogManager.addEntry(name + "/ControlMode", 
-            controlModeSignal.getSignal())
+        LogManager.addEntry(name + " ControlMode", 
+            () -> getCurrentControlMode())
             .withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP).build();
     }
 
@@ -448,16 +448,6 @@ public class TalonMotor extends TalonFX implements MotorInterface {
         );
     }
 
-    /**
-     * override the sendable of the talonFX to our costum widget in elastic
-     * <br>
-     * </br>
-     * to activate put in the code:
-     * 
-     * <pre>
-     * SmartDashboard.putData("talonMotor name", talonMotor);
-     * </pre>
-     */
     @Override
     public void initSendable(SendableBuilder builder) {
         builder.setSmartDashboardType("Talon Motor");

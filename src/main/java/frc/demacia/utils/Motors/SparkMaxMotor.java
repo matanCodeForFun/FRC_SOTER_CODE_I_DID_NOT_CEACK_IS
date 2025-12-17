@@ -1,10 +1,10 @@
 package frc.demacia.utils.Motors;
 
 import com.revrobotics.spark.ClosedLoopSlot;
-import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkLowLevel;
+import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig;
-import com.revrobotics.spark.config.SparkFlexConfig;
+import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.util.sendable.Sendable;
@@ -18,11 +18,11 @@ import frc.demacia.utils.Log.LogManager;
 import frc.demacia.utils.Log.LogEntryBuilder.LogLevel;
 import frc.robot.RobotContainer;
 
-public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterface {
+public class SparkMaxMotor extends SparkMax implements Sendable, MotorInterface {
 
-  private frc.demacia.utils.Motors.SparkFlexConfig config;
+  private frc.demacia.utils.Motors.SparkMaxConfig config;
   private String name;
-  private SparkFlexConfig cfg;
+  private SparkMaxConfig cfg;
   private int slot = 0;
   private ClosedLoopSlot closedLoopSlot = ClosedLoopSlot.kSlot0;
   private ControlType controlType = ControlType.kDutyCycle;
@@ -34,18 +34,18 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
   private int lastCycleNum = 0;
   private double lastTime = 0;
 
-  public SparkFlexMotor(frc.demacia.utils.Motors.SparkFlexConfig config) {
+  public SparkMaxMotor(frc.demacia.utils.Motors.SparkMaxConfig config) {
     super(config.id, SparkLowLevel.MotorType.kBrushless);
     this.config = config;
     name = config.name;
     configMotor();
     addLog();
-    SmartDashboard.putData(name, this);
     LogManager.log(name + " motor initialized");
+    SmartDashboard.putData(name, this);
   }
 
   private void configMotor() {
-    cfg = new SparkFlexConfig();
+    cfg = new SparkMaxConfig();
     cfg.smartCurrentLimit((int) config.maxCurrent);
     cfg.openLoopRampRate(config.rampUpTime);
     cfg.closedLoopRampRate(config.rampUpTime);
@@ -84,16 +84,15 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
         getCurrentCurrent(),
         getCurrentClosedLoopError(),
         getCurrentClosedLoopSP(),
-      }).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP)
-      .WithIsMotor().build();
+      }).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP).build();
   }
 
   public void checkElectronics() {
-    Faults faults = getFaults();
-    if (faults != null) {
-        LogManager.log(name + " have fault num: " + faults.toString(), AlertType.kError);
-    }
-}
+      Faults faults = getFaults();
+      if (faults != null) {
+          LogManager.log(name + " have fault num: " + faults.toString(), AlertType.kError);
+      }
+  }
 
   /**
    * change the slot of the pid and feed forward.
@@ -187,7 +186,7 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
     controlType = ControlType.kMAXMotionPositionControl;
     lastControlMode = "Motion";
     setPoint = position;
-  } 
+  }
 
   @Override
   public void setMotion(double position) {
@@ -208,8 +207,8 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
     return velocity * velocity * Math.signum(velocity) * config.kv2;
   }
 
-  private double positionFeedForward(double positin) {
-    return Math.cos(positin * config.posToRad) * config.kSin;
+  private double positionFeedForward(double position) {
+    return Math.cos(position * config.posToRad) * config.kSin;
   }
 
   @Override
@@ -252,8 +251,8 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
               "Max Current",
               "Ramp Time (s)",
               "Max Volt",
-              "Brake (0,1)",
-              "Invert (0,1)",
+              "Brake (0/1)",
+              "Invert (0/1)",
               "Motor Ratio",
               "Slot"
           },
@@ -296,9 +295,9 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
           (double[] array) -> {
               int mode = (int) array[0];
               double value = array[1];
-              
+  
               switch (mode) {
-                  case 0: // Duty cycle
+                  case 0: // Duty cycle [-1, 1]
                       setDuty(value);
                       break;
                   case 1: // Voltage

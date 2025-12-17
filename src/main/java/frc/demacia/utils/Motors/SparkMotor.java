@@ -15,6 +15,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Utilities;
 import frc.demacia.utils.Log.LogManager;
+import frc.demacia.utils.Log.LogEntryBuilder.LogLevel;
 import frc.robot.RobotContainer;
 
 public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
@@ -26,7 +27,7 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   private ClosedLoopSlot closedLoopSlot = ClosedLoopSlot.kSlot0;
   private ControlType controlType = ControlType.kDutyCycle;
 
-  private String lastControlMode;
+  private String lastControlMode = "";
   private double lastVelocity;
   private double lastAcceleration;
   private double setPoint = 0;
@@ -39,8 +40,8 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
     name = config.name;
     configMotor();
     addLog();
-    SmartDashboard.putData(name, this);
     LogManager.log(name + " motor initialized");
+    SmartDashboard.putData(name, this);
   }
 
   private void configMotor() {
@@ -57,7 +58,6 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
     if (config.maxVelocity != 0) {
       cfg.closedLoop.maxMotion.maxVelocity(config.maxVelocity).maxAcceleration(config.maxAcceleration);
     }
-    getEncoder();
     this.configure(cfg, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
   }
 
@@ -73,8 +73,9 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
     }
   }
 
+  @SuppressWarnings("unchecked")
   private void addLog() {
-    LogManager.addEntry(name + "/Position and Velocity and Acceleration and Voltage and Current and CloseLoopError and CloseLoopSP2", 
+    LogManager.addEntry(name + "/Position and Velocity and Acceleration and Voltage and Current and CloseLoopError and CloseLoopSP", 
       () -> new double[] {
         getCurrentPosition(),
         getCurrentVelocity(),
@@ -83,7 +84,14 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
         getCurrentCurrent(),
         getCurrentClosedLoopError(),
         getCurrentClosedLoopSP(),
-      }, 3, "motor");
+      }).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP).build();
+  }
+
+  public void checkElectronics() {
+      Faults faults = getFaults();
+      if (faults != null) {
+          LogManager.log(name + " have fault num: " + faults.toString(), AlertType.kError);
+      }
   }
 
   /**
@@ -233,7 +241,7 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   public void showConfigPIDFSlotCommand(int slot) {
     CloseLoopParam p = config.pid[slot];
     if (p != null) {
-      UpdateArray.show(name + " PID " + slot, CloseLoopParam.names, p.toArray(), (double[] array) -> updatePID(true));
+      UpdateArray.show(name + " PID " + slot, CloseLoopParam.PARAMETER_NAMES, p.toArray(), (double[] array) -> updatePID(true));
     }
   }
 
@@ -321,7 +329,7 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   }
 
   public double getCurrentPosition() {
-    return encoder.getPosition();
+    return getEncoder().getPosition();
   }
 
   public double getCurrentAngle() {
@@ -334,7 +342,7 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
   }
 
   public double getCurrentVelocity() {
-    double velocity = encoder.getVelocity();
+    double velocity = getEncoder().getVelocity();
     if (lastCycleNum != RobotContainer.N_CYCLE) {
       lastCycleNum = RobotContainer.N_CYCLE;
       double time = Timer.getFPGATimestamp();
@@ -391,7 +399,7 @@ public class SparkMotor extends SparkMax implements Sendable, MotorInterface {
 
   @Override
   public void setEncoderPosition(double position) {
-    encoder.setPosition(position);
+    getEncoder().setPosition(position);
   }
 
   @Override

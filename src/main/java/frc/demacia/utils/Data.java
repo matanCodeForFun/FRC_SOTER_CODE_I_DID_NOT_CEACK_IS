@@ -1,7 +1,9 @@
 package frc.demacia.utils;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -48,7 +50,7 @@ import com.ctre.phoenix6.StatusSignal;
  */
 public class Data<T> {
     
-    private static ArrayList<Data<?>> signals = new ArrayList<>();
+    private static ArrayList<WeakReference<Data<?>>> signals = new ArrayList<>();
 
     private StatusSignal<T>[] signal;
     private Supplier<T>[] supplier;
@@ -78,8 +80,6 @@ public class Data<T> {
     @SuppressWarnings("unchecked")
     public Data(StatusSignal<T>... signal){
         this.signal = signal;
-
-        signals.add(this);
         
         length = signal.length;
 
@@ -93,6 +93,9 @@ public class Data<T> {
 
         detectTypeFromSignal();
         allocateCachedArrays();
+
+        refresh();
+        register();
     }
     
     /**
@@ -107,20 +110,17 @@ public class Data<T> {
         this.supplier = supplier;
         this.oldSupplier = supplier;
 
-        signals.add(this);
-
-        T value = supplier[0].get();
+        T value = supplier.length > 0 ? supplier[0].get() : null;
 
         if (value == null){
             length = 0;
             currentValues = (T[]) new Object[0];
+            register();
             return;
         }
 
         length = supplier.length;
         currentValues = (T[]) new Object[length];
-        
-        refresh();
 
         if (value.getClass().isArray()) {
             handleArraySupplier(value, supplier);
@@ -129,10 +129,19 @@ public class Data<T> {
         }
 
         allocateCachedArrays();
+        refresh();
+        register();
+    }
+
+    private void register() {
+        synchronized (signals) {
+            signals.add(new WeakReference<>(this));
+        }
     }
 
     // Separate type detection to avoid repeated checks
     private void detectTypeFromSignal() {
+        if (length == 0) return;
         try {
             signal[0].getValueAsDouble();
             isDouble = true;
@@ -157,22 +166,21 @@ public class Data<T> {
     }
 
     private void detectArrayType(T value) {
-        try {
-            Object first = java.lang.reflect.Array.get(value, 0);
-            ((Number) first).doubleValue();
+        if (java.lang.reflect.Array.getLength(value) == 0) return;
+        Object first = java.lang.reflect.Array.get(value, 0);
+        if (first instanceof Number) {
             isDouble = true;
-        } catch (Exception e) {
-            isBoolean = (value instanceof boolean[] || value instanceof Boolean[]);
+        } else if (first instanceof Boolean) {
+            isBoolean = true;
         }
     }
 
     @SuppressWarnings("unchecked")
     private void handleScalarSupplier(T value, Supplier<T>[] supplier) {
-        try {
-            ((Number) value).doubleValue();
+        if (value instanceof Number) {
             isDouble = true;
-        } catch (Exception e) {
-            isBoolean = (value instanceof Boolean);
+        } else if (value instanceof Boolean) {
+            isBoolean = true;
         }
         
         if (length > 1){
@@ -182,15 +190,12 @@ public class Data<T> {
             this.supplier = new Supplier[] {
                 () -> {
                     T[] freshValues = (T[]) new Object[this.oldSupplier.length];
-                    
                     for (int i = 0; i < this.oldSupplier.length; i++){
                         freshValues[i] = this.oldSupplier[i].get();
                     }
-                    
                     return freshValues;
                 }
             };
-
             length = 1;
         }
     }
@@ -211,11 +216,283 @@ public class Data<T> {
     }
 
     private int getEffectiveLength() {
+        if (signal != null) return length;
+
         if (currentValues == null || currentValues.length == 0) return 0;
         if (isArray && currentValues[0] != null && currentValues[0].getClass().isArray()) {
             return java.lang.reflect.Array.getLength(currentValues[0]);
         }
         return length;
+    }
+
+    /**
+     * Refreshes all values from sources.
+     * 
+     * <p>For StatusSignals, performs bulk refresh. For Suppliers, calls get().</p>
+     */
+    @SuppressWarnings("unchecked")
+    public void refresh() {
+        changed = false;
+
+        if (signal != null) {
+            StatusCode st = StatusSignal.refreshAll(signal);
+            if(st.isOK()) {
+                if (isDouble) {
+                    for (int i = 0; i < length; i++) {
+                        double newVal = signal[i].getValueAsDouble();
+                        if (cachedDoubleArray[i] != newVal) {
+                            changed = true;
+                            cachedDoubleArray[i] = newVal;
+                            if (currentValues[i] == null || ((Number)currentValues[i]).doubleValue() != newVal) {
+                                currentValues[i] = (T) Double.valueOf(newVal); 
+                            }
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < length; i++){
+                        T newVal = signal[i].getValue();
+                        if (!Objects.equals(currentValues[i], newVal)) {
+                            changed = true;
+                            currentValues[i] = newVal;
+                        }
+                    }
+                }
+            }
+        } else {
+            boolean anyChanged = false;
+            
+            for (int i = 0; i < length; i++){
+                T newVal = supplier[i].get();
+                if (!Objects.equals(currentValues[i], newVal)) {
+                    anyChanged = true;
+                    currentValues[i] = newVal;
+                }
+            }
+            
+            if (anyChanged) {
+                changed = true;
+                if (isDouble) {
+                    toDoubleArray(currentValues);
+                } else if (isBoolean) {
+                    toBooleanArray(currentValues);
+                } else {
+                    toStringArray(currentValues);
+                }
+            }
+        }
+    }
+
+    /**
+     * Refreshes all Data objects globally.
+     * 
+     * <p>Efficient bulk refresh of all CTRE signals at once.</p>
+     */
+    public static void refreshAll() {
+        synchronized (signals) {
+            Iterator<WeakReference<Data<?>>> iterator = signals.iterator();
+            while (iterator.hasNext()) {
+                Data<?> data = iterator.next().get();
+                if (data == null) {
+                    iterator.remove();
+                } else {
+                    data.refresh();
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if the data has changed since last refresh.
+     * 
+     * <p>Uses configured precision for double comparisons.</p>
+     * 
+     * @return true if any value changed beyond precision threshold
+     */ 
+    public boolean hasChanged() {
+        return changed;
+    }
+
+    /**
+     * Gets the current value as a double.
+     * 
+     * @return Double value, or null if not a double type
+     */
+    public Double getDouble() {
+        if (!isDouble || length == 0) return null;
+        if (cachedDoubleArray != null) return cachedDoubleArray[0];
+        return toDouble(currentValues[0]);
+    }
+
+    /**
+     * Gets the current values as a double array.
+     * 
+     * @return Array of doubles, or null if not a double type
+     */
+    public double[] getDoubleArray() {
+        if (!isDouble || length == 0) return null;
+        
+        if (signal != null){
+            return cachedDoubleArray;
+        }
+        return toDoubleArray(currentValues);
+    }
+
+    /**
+     * Gets the current value as a float (for NT publishing).
+     * 
+     * @return Float value, or null if not a double type
+     */
+    public Float getFloat() {
+        if (!isDouble || length == 0) return null;
+        if (cachedDoubleArray != null) return (float) cachedDoubleArray[0];
+        Double d = toDouble(currentValues[0]);
+        return d != null ? d.floatValue() : null;
+    }
+
+    /**
+     * Gets the current values as a float array (for NT publishing).
+     * 
+     * @return Array of floats, or null if not a double type
+     */
+    public float[] getFloatArray() {
+        if (!isDouble || length == 0) return null;
+        
+        if (cachedDoubleArray != null) {
+            if (cachedFloatArray == null || cachedFloatArray.length != cachedDoubleArray.length) {
+                cachedFloatArray = new float[cachedDoubleArray.length];
+            }
+            for(int i=0; i<cachedDoubleArray.length; i++) {
+                cachedFloatArray[i] = (float)cachedDoubleArray[i];
+            }
+            return cachedFloatArray;
+        }
+        return toFloatArray(currentValues);
+    }
+
+    /**
+     * Gets the current value as a boolean.
+     * 
+     * @return Boolean value, or null if not a boolean type
+     */
+    public Boolean getBoolean() {
+        if (!isBoolean || length == 0) return null;
+        if (signal != null) return (Boolean) signal[0].getValue();
+        return (Boolean) currentValues[0];
+    }
+
+    /**
+     * Gets the current values as a boolean array.
+     * 
+     * @return Array of booleans, or null if not a boolean type
+     */
+    public boolean[] getBooleanArray() {
+        if (!isBoolean || length == 0) return null;
+        
+        if (signal != null) {
+            if (cachedBooleanArray == null || cachedBooleanArray.length != length) 
+                cachedBooleanArray = new boolean[length];
+            for(int i = 0; i < length; i++) {
+                cachedBooleanArray[i] = (Boolean)signal[i].getValue();
+            }
+            return cachedBooleanArray;
+        }
+        return toBooleanArray(currentValues);
+    }
+
+    /**
+     * Gets the current value as a string.
+     * 
+     * @return String value, or empty string if numeric type
+     */
+    public String getString() {
+        if (isDouble || isBoolean || length == 0) {return "";}
+        if (signal != null && signal.length > 0) return signal[0].getValue().toString();
+        return currentValues[0] != null ? currentValues[0].toString() : "";
+    }
+
+    /**
+     * Gets the current values as a string array.
+     * 
+     * @return Array of strings, or null if numeric type
+     */
+    public String[] getStringArray() {
+        if (isDouble || isBoolean || length == 0) return null;
+        
+        if (signal != null){
+            if (cachedStringArray == null || cachedStringArray.length != signal.length) {
+                cachedStringArray = new String[signal.length];
+            }
+            for (int i = 0; i < signal.length; i++) {
+                cachedStringArray[i] = signal[i].getValue().toString();
+            }
+            return cachedStringArray;
+        }
+        return toStringArray(currentValues);
+    }
+
+    public T getValue() {
+        if (length == 0) return null;
+        return currentValues[0];
+    }
+
+    public T[] getValueArray() {
+        if (length == 0) return null;
+        return currentValues;
+    }
+
+    public StatusSignal<T> getSignal() {
+        return (signal != null && signal.length > 0) ? signal[0] : null;
+    }
+
+    public StatusSignal<T>[] getSignals() {
+        return signal;
+    }
+
+    public Supplier<T> getSupplier() {
+        return (oldSupplier != null && oldSupplier.length > 0) ? oldSupplier[0] : null;
+    }
+
+    public Supplier<T>[] getSuppliers() {
+        return oldSupplier;
+    }
+
+    /**
+     * Gets the timestamp of the data (for CTRE signals).
+     * 
+     * @return Timestamp in microseconds, or 0 for Suppliers
+     */
+    public long getTime() {
+        if (signal != null) {
+            return (long) (signal[0].getTimestamp().getTime() * 1000);
+        }
+        return 0;
+    }
+
+    /**
+     * Checks if this Data object contains double values.
+     * 
+     * @return true if type is numeric
+     */
+    public boolean isDouble(){
+        return isDouble;
+    }
+
+    /**
+     * Checks if this Data object contains boolean values.
+     * 
+     * @return true if type is boolean
+     */
+    public boolean isBoolean(){
+        return isBoolean;
+    }
+
+    /**
+     * Checks if this Data object contains array values.
+     * 
+     * @return true if multiple values
+     */
+    public boolean isArray(){
+        return isArray;
     }
 
     /**
@@ -240,14 +517,12 @@ public class Data<T> {
         signal = expandedSignals;
         
         T[] expandedCurrent = (T[]) new Object[newLength];
-        
         if (currentValues != null) {
             System.arraycopy(currentValues, 0, expandedCurrent, 0, Math.min(oldLength, currentValues.length));
         }
         
         currentValues = expandedCurrent;
         length = newLength;
-        
         if (length > 1) {
             isArray = true;
         }
@@ -378,259 +653,6 @@ public class Data<T> {
         removeSupplierRange(startIndex, 1);
     }
 
-    /**
-     * Gets the current value as a double.
-     * 
-     * @return Double value, or null if not a double type
-     */
-    public Double getDouble() {
-        if (!isDouble || length == 0) {return null;}
-        if (signal != null){
-            return (double)signal[0].getValueAsDouble();
-        }
-        return toDouble(currentValues[0]);
-    }
-
-    /**
-     * Gets the current values as a double array.
-     * 
-     * @return Array of doubles, or null if not a double type
-     */
-    public double[] getDoubleArray() {
-        if (!isDouble || length == 0) return null;
-        
-        if (signal != null){
-            // Reuse cached array
-            if (cachedDoubleArray == null || cachedDoubleArray.length != signal.length) {
-                cachedDoubleArray = new double[signal.length];
-            }
-            for (int i = 0; i < signal.length; i++) {
-                cachedDoubleArray[i] = signal[i].getValueAsDouble();
-            }
-            return cachedDoubleArray;
-        }
-        return toDoubleArray(currentValues);
-    }
-
-    /**
-     * Gets the current value as a float (for NT publishing).
-     * 
-     * @return Float value, or null if not a double type
-     */
-    public Float getFloat() {
-        if (!isDouble || length == 0) {return null;}
-        if (signal != null){
-            return (float) signal[0].getValueAsDouble();
-        }
-        Double d = toDouble(currentValues[0]);
-        return d != null ? d.floatValue() : null;
-    }
-
-    /**
-     * Gets the current values as a float array (for NT publishing).
-     * 
-     * @return Array of floats, or null if not a double type
-     */
-    public float[] getFloatArray() {
-        if (!isDouble || length == 0) return null;
-        
-        if (signal != null){
-            if (cachedFloatArray == null || cachedFloatArray.length != signal.length) {
-                cachedFloatArray = new float[signal.length];
-            }
-            for (int i = 0; i < signal.length; i++) {
-                cachedFloatArray[i] = (float) signal[i].getValueAsDouble();
-            }
-            return cachedFloatArray;
-        }
-        return toFloatArray(currentValues);
-    }
-
-    /**
-     * Gets the current value as a boolean.
-     * 
-     * @return Boolean value, or null if not a boolean type
-     */
-    public Boolean getBoolean() {
-        if (!isBoolean || length == 0) {return null;}
-        if (signal != null){
-            return (Boolean) signal[0].getValue();
-        }
-        return (Boolean) currentValues[0];
-    }
-
-    /**
-     * Gets the current values as a boolean array.
-     * 
-     * @return Array of booleans, or null if not a boolean type
-     */
-    public boolean[] getBooleanArray() {
-        if (!isBoolean || length == 0) return null;
-        
-        if (signal != null){
-            if (cachedBooleanArray == null || cachedBooleanArray.length != signal.length) {
-                cachedBooleanArray = new boolean[signal.length];
-            }
-            for (int i = 0; i < signal.length; i++) {
-                cachedBooleanArray[i] = (Boolean) signal[i].getValue();
-            }
-            return cachedBooleanArray;
-        }
-        return toBooleanArray(currentValues);
-    }
-
-    /**
-     * Gets the current value as a string.
-     * 
-     * @return String value, or empty string if numeric type
-     */
-    public String getString() {
-        if (isDouble || isBoolean || length == 0) {return "";}
-        if (signal != null){
-            return signal[0].getValue().toString();
-        }
-        return currentValues[0] != null ? currentValues[0].toString() : "";
-    }
-
-    /**
-     * Gets the current values as a string array.
-     * 
-     * @return Array of strings, or null if numeric type
-     */
-    public String[] getStringArray() {
-        if (isDouble || isBoolean || length == 0) return null;
-        
-        if (signal != null){
-            if (cachedStringArray == null || cachedStringArray.length != signal.length) {
-                cachedStringArray = new String[signal.length];
-            }
-            for (int i = 0; i < signal.length; i++) {
-                cachedStringArray[i] = signal[i].getValue().toString();
-            }
-            return cachedStringArray;
-        }
-        return toStringArray(currentValues);
-    }
-
-    public T getValue() {
-        if (length == 0) {return null;}
-        return currentValues[0];
-    }
-
-    public T[] getValueArray() {
-        if (length == 0) {return null;}
-        return currentValues;
-    }
-
-    public StatusSignal<T> getSignal() {
-        return (signal != null && signal.length > 0) ? signal[0] : null;
-    }
-
-    public StatusSignal<T>[] getSignals() {
-        return signal;
-    }
-
-    public Supplier<T> getSupplier() {
-        return (oldSupplier != null && oldSupplier.length > 0) ? oldSupplier[0] : null;
-    }
-
-    public Supplier<T>[] getSuppliers() {
-        return oldSupplier;
-    }
-
-    /**
-     * Refreshes all values from sources.
-     * 
-     * <p>For StatusSignals, performs bulk refresh. For Suppliers, calls get().</p>
-     */
-    public void refresh() {
-        changed = false;
-
-        if (signal != null) {
-            StatusCode st = StatusSignal.refreshAll(signal);
-            if(st == StatusCode.OK) {
-                for (int i = 0; i < length; i++){
-                    T newVal = signal[i].getValue();
-                    if (!Objects.equals(currentValues[i], newVal)) {
-                        changed = true;
-                    }
-                    currentValues[i] = newVal;
-                }
-            }
-        } else {
-            for (int i = 0; i < length; i++){
-                T newVal = supplier[i].get();
-
-                if (!Objects.equals(currentValues[i], newVal)) {
-                    changed = true;
-                }
-                currentValues[i] = newVal;
-            }
-        }
-    }
-
-    /**
-     * Refreshes all Data objects globally.
-     * 
-     * <p>Efficient bulk refresh of all CTRE signals at once.</p>
-     */
-    @SuppressWarnings("rawtypes")
-    public static void refreshAll() {
-        for(Data s : signals) {
-            s.refresh();
-        }
-    }
-
-    /**
-     * Checks if the data has changed since last refresh.
-     * 
-     * <p>Uses configured precision for double comparisons.</p>
-     * 
-     * @return true if any value changed beyond precision threshold
-     */ 
-    public boolean hasChanged() {
-        return changed;
-    }
-
-    /**
-     * Gets the timestamp of the data (for CTRE signals).
-     * 
-     * @return Timestamp in microseconds, or 0 for Suppliers
-     */
-    public long getTime() {
-        if (signal != null) {
-            return (long) (signal[0].getTimestamp().getTime() * 1000);
-        }
-        return 0;
-    }
-
-    /**
-     * Checks if this Data object contains double values.
-     * 
-     * @return true if type is numeric
-     */
-    public boolean isDouble(){
-        return isDouble;
-    }
-
-    /**
-     * Checks if this Data object contains boolean values.
-     * 
-     * @return true if type is boolean
-     */
-    public boolean isBoolean(){
-        return isBoolean;
-    }
-
-    /**
-     * Checks if this Data object contains array values.
-     * 
-     * @return true if multiple values
-     */
-    public boolean isArray(){
-        return isArray;
-    }
-
     private double[] toDoubleArray(T[] value){
         if (value == null) return null;
 
@@ -648,7 +670,7 @@ public class Data<T> {
                      cachedDoubleArray[i] = 0.0;
                 }
             }
-        }else {
+        } else {
             for (int i = 0; i < currentLength; i++) {
                 Object elem = java.lang.reflect.Array.get(value[0], i);
                 cachedDoubleArray[i] = (elem != null) ? ((Number) elem).doubleValue() : 0.0;
@@ -668,7 +690,6 @@ public class Data<T> {
 
     private float[] toFloatArray(T[] value){
         if (value == null) return null;
-
         if (isArray){
             int arrayLength = java.lang.reflect.Array.getLength(value[0]);
             if (cachedFloatArray == null || cachedFloatArray.length != arrayLength) {
@@ -678,7 +699,6 @@ public class Data<T> {
                 Object elem = java.lang.reflect.Array.get(value[0], i);
                 cachedFloatArray[i] = (elem != null) ? ((Number) elem).floatValue() : 0f;
             }
-            return cachedFloatArray;
         } else {
             if (cachedFloatArray == null || cachedFloatArray.length != length) {
                 cachedFloatArray = new float[length];
@@ -686,32 +706,30 @@ public class Data<T> {
             for (int i = 0; i < length; i++) {
                 cachedFloatArray[i] = (value[i] != null) ? ((Number) value[i]).floatValue() : 0f;
             }
-            return cachedFloatArray;
         }
+        return cachedFloatArray;
     }
 
     private boolean[] toBooleanArray(T[] value){
         if (value == null) return null;
 
-        if (isArray){
-            int arrayLength = java.lang.reflect.Array.getLength(value[0]);
-            if (cachedBooleanArray == null || cachedBooleanArray.length != arrayLength) {
-                cachedBooleanArray = new boolean[arrayLength];
+        int currentLength = (isArray && value[0] != null) ? java.lang.reflect.Array.getLength(value[0]) : length;
+
+        if (cachedBooleanArray == null || cachedBooleanArray.length != currentLength) {
+             cachedBooleanArray = new boolean[currentLength];
+        }
+        
+        if (!isArray) {
+            for (int i = 0; i < length; i++) {
+                 cachedBooleanArray[i] = (value[i] != null) && (Boolean) value[i];
             }
-            for (int i = 0; i < arrayLength; i++) {
+        } else {
+            for (int i = 0; i < currentLength; i++) {
                 Object elem = java.lang.reflect.Array.get(value[0], i);
                 cachedBooleanArray[i] = (elem != null) && (Boolean) elem;
             }
-            return cachedBooleanArray;
-        } else {
-            if (cachedBooleanArray == null || cachedBooleanArray.length != length) {
-                cachedBooleanArray = new boolean[length];
-            }
-            for (int i = 0; i < length; i++) {
-                cachedBooleanArray[i] = (value[i] != null) && (Boolean) value[i];
-            }
-            return cachedBooleanArray;
         }
+        return cachedBooleanArray;
     }
     
     private String[] toStringArray(T[] value){
@@ -726,7 +744,6 @@ public class Data<T> {
                 Object elem = java.lang.reflect.Array.get(value[0], i);
                 cachedStringArray[i] = (elem != null) ? elem.toString() : null;
             }
-            return cachedStringArray;
         } else {
             if (cachedStringArray == null || cachedStringArray.length != length) {
                 cachedStringArray = new String[length];
@@ -734,16 +751,15 @@ public class Data<T> {
             for (int i = 0; i < length; i++) {
                 cachedStringArray[i] = (value[i] != null) ? value[i].toString() : null;
             }
-            return cachedStringArray;
         }
+        return cachedStringArray;
     }
 
     public void cleanup() {
-        signals.remove(this);
+        signal = null;
+        supplier = null;
+        currentValues = null;
         cachedDoubleArray = null;
-        cachedFloatArray = null;
-        cachedBooleanArray = null;
-        cachedStringArray = null;
     }
     
     public static void clearAllSignals() {

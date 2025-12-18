@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 
 import com.ctre.phoenix6.StatusSignal;
 
+import edu.wpi.first.math.Pair;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.util.datalog.DataLog;
@@ -127,7 +128,7 @@ public class LogManager extends SubsystemBase {
     initializeIfNeeded();
     for (int i = 0; i < logManager.individualLogEntries.size(); i++) {
       logManager.individualLogEntries.get(i).removeInComp();
-      if (logManager.individualLogEntries.get(i).logLevel == LogLevel.LOG_ONLY_NOT_IN_COMP) {
+      if (logManager.individualLogEntries.get(i).getLogLevel() == LogLevel.LOG_ONLY_NOT_IN_COMP) {
         logManager.individualLogEntries.remove(logManager.individualLogEntries.get(i));
         i--;
       }
@@ -136,7 +137,7 @@ public class LogManager extends SubsystemBase {
     for (int i = 0; i < 4; i++) {
       if (logManager.categoryLogEntries[i] != null && logManager.categoryLogEntries[i] != null) {
         logManager.categoryLogEntries[i].removeInComp();
-        if (logManager.categoryLogEntries[i].logLevel == LogLevel.LOG_ONLY_NOT_IN_COMP) {
+        if (logManager.categoryLogEntries[i].getLogLevel() == LogLevel.LOG_ONLY_NOT_IN_COMP) {
           logManager.categoryLogEntries[i] = null;
           int index = i;
           logManager.entryLocationMap.entrySet().removeIf(entry -> entry.getValue()[0] == index);
@@ -249,9 +250,9 @@ public class LogManager extends SubsystemBase {
             logManager.updateSubIndicesAfterRemoval(categoryIndex, subIndex);
             logManager.updateDataIndicesAfterRemoval(categoryIndex, dataIndex, dataCount);
             
-            if (categoryEntry.data == null || 
-              categoryEntry.name == null || 
-              categoryEntry.name.trim().isEmpty()) {
+            if (categoryEntry.getData() == null || 
+              categoryEntry.getName() == null || 
+              categoryEntry.getName().trim().isEmpty()) {
               logManager.categoryLogEntries[categoryIndex] = null;
               final int catIndex = categoryIndex;
               logManager.entryLocationMap.entrySet().removeIf(
@@ -307,6 +308,16 @@ public class LogManager extends SubsystemBase {
 
   @Override
   public void periodic() {
+    Data.refreshAll();
+
+    for (int i = activeConsole.size() - 1; i >= 0; i--) {
+      ConsoleAlert alert = activeConsole.get(i);
+      if (alert.isTimerOver()) {
+          alert.set(false);
+          activeConsole.remove(i);
+      }
+    }
+
     for (LogEntry<?> e : individualLogEntries) {
       e.log();
     }
@@ -336,14 +347,12 @@ public class LogManager extends SubsystemBase {
 
   @SuppressWarnings("unchecked")
   private <T> LogEntry<T> addToEntryArray(int i, String name, Data<T> data, String metaData) {
-    if (categoryLogEntries[i] != null && categoryLogEntries[i].data != null) {
-      boolean groupIsSignal = categoryLogEntries[i].data.getSignals() != null;
+    if (categoryLogEntries[i] != null && categoryLogEntries[i].getData() != null) {
+      boolean groupIsSignal = categoryLogEntries[i].getData().getSignals() != null;
       boolean newIsSignal = data.getSignals() != null;
 
       if (groupIsSignal != newIsSignal) {
-          LogManager.log("Log Type Mismatch: Cannot merge Signal and Supplier in '" + name + "'. Creating separate entry.", AlertType.kWarning);
-          
-          // Fallback: Create a standard individual entry instead
+          LogManager.log("Log Type Mismatch in '" + name + "'. Creating separate entry.", AlertType.kWarning);
           return add(name, data, LogLevel.LOG_ONLY, metaData, false);
       }
     }
@@ -351,22 +360,18 @@ public class LogManager extends SubsystemBase {
     int subIndex;
     int dataIndex = 0;
     
-    if (categoryLogEntries[i] == null || categoryLogEntries[i].data == null) {
-        categoryLogEntries[i] = new LogEntry<>(name, data, 
-        i <= 3? LogLevel.LOG_ONLY_NOT_IN_COMP: 
-        i <= 7? LogLevel.LOG_ONLY: 
-        i <= 11? LogLevel.LOG_AND_NT_NOT_IN_COMP: LogLevel.LOG_AND_NT
-        , metaData);
+    if (categoryLogEntries[i] == null) {
+        categoryLogEntries[i] = new LogEntry<>(name, data, getLogLevelFromIndex(i), metaData);
         subIndex = 1;
         dataIndex = 0;
     } else {
-        String[] parts = getCachedSplit(categoryLogEntries[i].name);
+        String[] parts = getCachedSplit(categoryLogEntries[i].getName());
         subIndex = parts.length + 1;
 
-        if (categoryLogEntries[i].data.getSignals() != null) {
-          dataIndex = categoryLogEntries[i].data.getSignals().length;
-        } else if (categoryLogEntries[i].data.getSuppliers() != null) {
-          dataIndex = categoryLogEntries[i].data.getSuppliers().length;
+        if (categoryLogEntries[i].getData().getSignals() != null) {
+          dataIndex = categoryLogEntries[i].getData().getSignals().length;
+        } else if (categoryLogEntries[i].getData().getSuppliers() != null) {
+          dataIndex = categoryLogEntries[i].getData().getSuppliers().length;
         }
 
         try {
@@ -376,20 +381,19 @@ public class LogManager extends SubsystemBase {
         }
     }
 
-    int dataLength = 0;
-    if (data.getSignals() != null) {
-      dataLength = data.getSignals().length;
-    } else if (data.getSuppliers() != null) {
-      dataLength = data.getSuppliers().length;
-    }
-
-
+    int dataLength = (data.getSignals() != null) ? data.getSignals().length : data.getSuppliers().length;
     entryLocationMap.put(name, new Integer[]{i, subIndex, dataIndex, dataLength});
     
     return (LogEntry<T>) categoryLogEntries[i];
   }
 
-  // Cache split results
+  private LogLevel getLogLevelFromIndex(int i) {
+    if (i <= 3) return LogLevel.LOG_ONLY_NOT_IN_COMP;
+    if (i <= 7) return LogLevel.LOG_ONLY;
+    if (i <= 11) return LogLevel.LOG_AND_NT_NOT_IN_COMP;
+    return LogLevel.LOG_AND_NT;
+  }
+
   private String[] getCachedSplit(String name) {
     return nameSplitCache.computeIfAbsent(name, k -> k.split(" \\| "));
   }
@@ -436,7 +440,7 @@ public class LogManager extends SubsystemBase {
   private void updateSubIndicesAfterRemoval(int categoryIndex, int removedSubIndex) {
       for (Map.Entry<String, Integer[]> entry : entryLocationMap.entrySet()) {
         Integer[] location = entry.getValue();
-          if (location[0] == categoryIndex && location[2] > removedSubIndex) {
+          if (location[0] == categoryIndex && location[1] > removedSubIndex) {
               entry.setValue(new Integer[]{categoryIndex, location[1] - 1, location[2], location[3]});
           }
       }
@@ -453,21 +457,88 @@ public class LogManager extends SubsystemBase {
       }
   }
 
+  /**
+   * Retrieves the Suppliers associated with a specific log name.
+   * @param name The name used when adding the entry
+   * @return Array of Pairs containing (Name, Supplier), or null if not found/wrong type.
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> Pair<String, Supplier<T>>[] getSuppliers(String name) {
+    initializeIfNeeded();
+    Integer[] loc = logManager.entryLocationMap.get(name);
+    if (loc == null) return null;
 
-  @SuppressWarnings("unused")
-  private LogEntry<?> get(String name) {
-    LogEntry<?> e = find(name);
-    return e != null 
-    ?e 
-    :new LogEntry<>(name, null, LogLevel.LOG_ONLY_NOT_IN_COMP, "");
+    LogEntry<?> entry = (loc[0] == -1) 
+        ? logManager.individualLogEntries.get(loc[1]) 
+        : logManager.categoryLogEntries[loc[0]];
+
+    if (entry == null || entry.getData() == null) return null;
+
+    Supplier<T>[] allSuppliers = (Supplier<T>[]) entry.getData().getSuppliers();
+    if (allSuppliers == null) return null; 
+
+    int start = (loc[0] == -1) ? 0 : loc[2];
+    int len = (loc[0] == -1) ? allSuppliers.length : loc[3];
+
+    String[] subNames = parseSubNames(name, len);
+
+    Pair<String, Supplier<T>>[] result = new Pair[len];
+    for (int i = 0; i < len; i++) {
+        result[i] = new Pair<>(subNames[i], allSuppliers[start + i]);
+    }
+    return result;
   }
 
-  private LogEntry<?> find(String name) {
-    for (LogEntry<?> entry : individualLogEntries) {
-      if (entry.name.equals(name)) {
-        return entry;
-      }
+  /**
+   * Retrieves the StatusSignals associated with a specific log name.
+   * @param name The name used when adding the entry
+   * @return Array of Pairs containing (Name, StatusSignal), or null if not found/wrong type.
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> Pair<String, StatusSignal<T>>[] getSignals(String name) {
+    initializeIfNeeded();
+    Integer[] loc = logManager.entryLocationMap.get(name);
+    if (loc == null) return null;
+
+    LogEntry<?> entry = (loc[0] == -1) 
+        ? logManager.individualLogEntries.get(loc[1]) 
+        : logManager.categoryLogEntries[loc[0]];
+
+    if (entry == null || entry.getData() == null) return null;
+
+    StatusSignal<T>[] allSignals = (StatusSignal<T>[]) entry.getData().getSignals();
+    if (allSignals == null) return null; 
+
+    int start = (loc[0] == -1) ? 0 : loc[2];
+    int len = (loc[0] == -1) ? allSignals.length : loc[3];
+
+    String[] subNames = parseSubNames(name, len);
+
+    Pair<String, StatusSignal<T>>[] result = new Pair[len];
+    for (int i = 0; i < len; i++) {
+        result[i] = new Pair<>(subNames[i], allSignals[start + i]);
     }
-    return null;
+    return result;
+  }
+
+  private static String[] parseSubNames(String name, int count) {
+    String cleanName = name;
+    if (name.contains(":")) {
+        cleanName = name.substring(name.indexOf(":") + 1);
+    }
+    
+    String[] parts = cleanName.split(",");
+    
+    for(int i = 0; i < parts.length; i++) {
+        parts[i] = parts[i].trim();
+    }
+
+    if (parts.length == count) {
+        return parts;
+    }
+    
+    String[] fallback = new String[count];
+    for(int i = 0; i < count; i++) fallback[i] = name;
+    return fallback; 
   }
 }

@@ -84,7 +84,7 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
         getCurrentClosedLoopError(),
         getCurrentClosedLoopSP(),
       }).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP)
-      .WithIsMotor().build();
+      .withIsMotor().build();
   }
 
   public void checkElectronics() {

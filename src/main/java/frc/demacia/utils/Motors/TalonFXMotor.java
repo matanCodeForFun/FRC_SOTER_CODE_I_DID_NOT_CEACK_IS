@@ -165,7 +165,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
             closedLoopErrorSignal.getSignal(),
             closedLoopSPSignal.getSignal(),
             }).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP)
-            .WithIsMotor().build();
+            .withIsMotor().build();
         LogManager.addEntry(name + " ControlMode", 
             () -> getCurrentControlMode())
             .withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP).build();

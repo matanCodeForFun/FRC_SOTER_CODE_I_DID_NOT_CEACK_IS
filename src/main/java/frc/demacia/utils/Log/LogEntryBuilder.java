@@ -53,11 +53,14 @@ public class LogEntryBuilder<T> {
     
     public LogEntryBuilder<T> withConsumer(BiConsumer<T[], Long> consumer) {
         this.consumer = consumer;
+        this.isSeparated = true; 
         return this;
     }
 
     public LogEntryBuilder<T> withIsSeparated(boolean isSeparated) {
-        this.isSeparated = isSeparated;
+        if (this.consumer == null) {
+            this.isSeparated = isSeparated;
+        }
         return this;
     }
     

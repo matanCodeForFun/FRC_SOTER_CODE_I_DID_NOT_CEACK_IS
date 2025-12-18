@@ -44,7 +44,6 @@ public class TalonSRXMotor extends TalonSRX implements MotorInterface,Sendable {
         setNeutralMode(config.brake ? NeutralMode.Brake : NeutralMode.Coast);
         configPeakOutputForward(config.maxVolt / 12.0);
         configPeakOutputReverse(config.minVolt / 12.0);
-        // cfg.Feedback.SensorToMechanismRatio = config.motorRatio * unitMultiplier;
         updatePID();
         configVoltageCompSaturation(config.maxVolt);
         enableVoltageCompensation(true);

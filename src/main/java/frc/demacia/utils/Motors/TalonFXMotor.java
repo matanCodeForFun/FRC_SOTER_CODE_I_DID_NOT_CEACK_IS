@@ -34,7 +34,6 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
     String name;
     TalonFXConfiguration cfg;
 
-    double unitMultiplier = 1.0;
     int slot = 0;
 
     DutyCycleOut dutyCycle = new DutyCycleOut(0);
@@ -78,10 +77,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
         cfg.MotorOutput.NeutralMode = config.brake ? NeutralModeValue.Brake : NeutralModeValue.Coast;
         cfg.MotorOutput.PeakForwardDutyCycle = config.maxVolt / 12.0;
         cfg.MotorOutput.PeakReverseDutyCycle = config.minVolt / 12.0;
-        if(config.motorRatio < 0.2) {
-            unitMultiplier = 100.0;
-        }
-        cfg.Feedback.SensorToMechanismRatio = config.motorRatio * unitMultiplier;
+        cfg.Feedback.SensorToMechanismRatio = config.motorRatio;
         updatePID(false);
         cfg.Voltage.PeakForwardVoltage = config.maxVolt;
         cfg.Voltage.PeakReverseVoltage = config.minVolt;
@@ -92,18 +88,18 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
     }
 
     private void configureMotionMagic(boolean apply) {
-        cfg.MotionMagic.MotionMagicAcceleration = config.maxAcceleration / unitMultiplier;
-        cfg.MotionMagic.MotionMagicCruiseVelocity = config.maxVelocity / unitMultiplier;
-        cfg.MotionMagic.MotionMagicJerk = config.maxJerk / unitMultiplier;
+        cfg.MotionMagic.MotionMagicAcceleration = config.maxAcceleration;
+        cfg.MotionMagic.MotionMagicCruiseVelocity = config.maxVelocity;
+        cfg.MotionMagic.MotionMagicJerk = config.maxJerk;
         if(config.maxAcceleration > 0) {
-            cfg.MotionMagic.MotionMagicExpo_kA = 12.0 / config.maxAcceleration * unitMultiplier;
+            cfg.MotionMagic.MotionMagicExpo_kA = 12.0 / config.maxAcceleration;
         } else {
-            cfg.MotionMagic.MotionMagicExpo_kA = config.pid[slot].ka() * unitMultiplier;
+            cfg.MotionMagic.MotionMagicExpo_kA = config.pid[slot].ka();
         }
         if(config.maxVelocity > 0) {
-            cfg.MotionMagic.MotionMagicExpo_kV = 12.0 / config.maxVelocity  * unitMultiplier;
+            cfg.MotionMagic.MotionMagicExpo_kV = 12.0 / config.maxVelocity;
         } else {
-            cfg.MotionMagic.MotionMagicExpo_kV = config.pid[slot].kv() * unitMultiplier;
+            cfg.MotionMagic.MotionMagicExpo_kV = config.pid[slot].kv();
         }
         if(apply) {
             getConfigurator().apply(cfg.MotionMagic);
@@ -115,26 +111,26 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
 
     private void updatePID(boolean apply) {
         System.out.println("update PID");
-        cfg.Slot0.kP = config.pid[0].kp() * unitMultiplier;
-        cfg.Slot0.kI = config.pid[0].ki() * unitMultiplier;
-        cfg.Slot0.kD = config.pid[0].kd() * unitMultiplier;
+        cfg.Slot0.kP = config.pid[0].kp();
+        cfg.Slot0.kI = config.pid[0].ki();
+        cfg.Slot0.kD = config.pid[0].kd();
         cfg.Slot0.kS = config.pid[0].ks();
-        cfg.Slot0.kV = config.pid[0].kv() * unitMultiplier;
-        cfg.Slot0.kA = config.pid[0].ka() * unitMultiplier;
+        cfg.Slot0.kV = config.pid[0].kv();
+        cfg.Slot0.kA = config.pid[0].ka();
         cfg.Slot0.kG = config.pid[0].kg();
-        cfg.Slot1.kP = config.pid[1].kp() * unitMultiplier;
-        cfg.Slot1.kI = config.pid[1].ki() * unitMultiplier;
-        cfg.Slot1.kD = config.pid[1].kd() * unitMultiplier;
+        cfg.Slot1.kP = config.pid[1].kp();
+        cfg.Slot1.kI = config.pid[1].ki();
+        cfg.Slot1.kD = config.pid[1].kd();
         cfg.Slot1.kS = config.pid[1].ks();
-        cfg.Slot1.kV = config.pid[1].kv() * unitMultiplier;
-        cfg.Slot1.kA = config.pid[1].ka() * unitMultiplier;
+        cfg.Slot1.kV = config.pid[1].kv();
+        cfg.Slot1.kA = config.pid[1].ka();
         cfg.Slot1.kG = config.pid[1].kg();
-        cfg.Slot2.kP = config.pid[2].kp() * unitMultiplier;
-        cfg.Slot2.kI = config.pid[2].ki() * unitMultiplier;
-        cfg.Slot2.kD = config.pid[2].kd() * unitMultiplier;
+        cfg.Slot2.kP = config.pid[2].kp();
+        cfg.Slot2.kI = config.pid[2].ki();
+        cfg.Slot2.kD = config.pid[2].kd();
         cfg.Slot2.kS = config.pid[2].ks();
-        cfg.Slot2.kV = config.pid[2].kv() * unitMultiplier;
-        cfg.Slot2.kA = config.pid[2].ka() * unitMultiplier;
+        cfg.Slot2.kV = config.pid[2].kv();
+        cfg.Slot2.kA = config.pid[2].ka();
         cfg.Slot2.kG = config.pid[2].kg();
         cfg.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
         cfg.Slot1.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
@@ -230,7 +226,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
      *                    defaults to 0
      */
     public void setVelocity(double velocity, double feedForward) {
-        setControl(velocityVoltage.withVelocity(velocity/unitMultiplier).withFeedForward(feedForward));
+        setControl(velocityVoltage.withVelocity(velocity).withFeedForward(feedForward));
     }
 
     public void setVelocity(double velocity) {
@@ -249,7 +245,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
      *                    to 0
      */
     public void setMotion(double position, double feedForward) {
-        setControl(motionMagicExpoVoltage.withPosition(position/unitMultiplier).withFeedForward(feedForward));  
+        setControl(motionMagicExpoVoltage.withPosition(position).withFeedForward(feedForward));  
     }
 
     public void setMotion(double position) {
@@ -267,7 +263,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
     }
   
     public void setPositionVoltage(double position, double feedForward) {
-        setControl(positionVoltage.withPosition(position/unitMultiplier).withFeedForward(feedForward));
+        setControl(positionVoltage.withPosition(position).withFeedForward(feedForward));
     }
 
     public void setPositionVoltage(double position) {
@@ -296,27 +292,27 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
 
     public double getCurrentClosedLoopSP() {
         Double value = closedLoopSPSignal.getDouble();
-        return value != null ? value * unitMultiplier : 0.0;
+        return value != null ? value : 0.0;
     }
     
     public double getCurrentClosedLoopError() {
         Double value = closedLoopErrorSignal.getDouble();
-        return value != null ? value * unitMultiplier : 0.0;
+        return value != null ? value : 0.0;
     }
     
     public double getCurrentPosition() {
         Double value = positionSignal.getDouble();
-        return value != null ? value * unitMultiplier : 0.0;
+        return value != null ? value : 0.0;
     }
     
     public double getCurrentVelocity() {
         Double value = velocitySignal.getDouble();
-        return value != null ? value * unitMultiplier : 0.0;
+        return value != null ? value : 0.0;
     }
     
     public double getCurrentAcceleration() {
         Double value = accelerationSignal.getDouble();
-        return value != null ? value * unitMultiplier : 0.0;
+        return value != null ? value : 0.0;
     }
     
     public double getCurrentAngle() {
@@ -473,7 +469,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
 
     @Override
     public void setEncoderPosition(double position) {
-      setPosition(position / unitMultiplier);   
+      setPosition(position);
     }
     public Data<Double> getClosedLoopErrorSignal() {
         return closedLoopErrorSignal;

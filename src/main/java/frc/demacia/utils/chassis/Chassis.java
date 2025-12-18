@@ -402,8 +402,14 @@ public class Chassis extends SubsystemBase {
             double vX = MathUtil.clamp(-drivePID.calculate(diffVector.getX(), 0), -3.2, 3.2);
             double vY = MathUtil.clamp(-drivePID.calculate(diffVector.getY(), 0), -3.2, 3.2);
 
+            ChassisSpeeds fieldSpeeds = new ChassisSpeeds(vX, vY, 0);
 
-            setVelocitiesRotateToAngleOld(new ChassisSpeeds(vX, vY, 0), pose.getRotation().getRadians());
+            ChassisSpeeds robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
+                fieldSpeeds, 
+                getPose().getRotation()
+            );
+
+            setVelocitiesRotateToAngleOld(robotSpeeds, pose.getRotation().getRadians());
         }
 
     }

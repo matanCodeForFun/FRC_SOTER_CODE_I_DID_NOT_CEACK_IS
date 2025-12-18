@@ -5,7 +5,6 @@
 package frc.robot;
 
 import frc.demacia.utils.Log.LogManager;
-import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -18,12 +17,6 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  */
 public class RobotContainer {
 
-  public static boolean isComp = DriverStation.isFMSAttached();
-  private static boolean hasRemovedFromLog = false;
-
-  public static int N_CYCLE = 0;
-  public static double CYCLE_TIME = 0.02;
-
   // The robot's subsystems and commands are defined here...
 
 
@@ -31,23 +24,10 @@ public class RobotContainer {
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
-
     new LogManager();
 
     // Configure the trigger bindings
     configureBindings();
-  }
-
-  public static boolean isComp() {
-    return isComp;
-  }
-
-  public static void setIsComp(boolean isComp) {
-    RobotContainer.isComp = isComp;
-    if(!hasRemovedFromLog && isComp) {
-      hasRemovedFromLog = true;
-      LogManager.removeInComp();
-    }
   }
 
   /**

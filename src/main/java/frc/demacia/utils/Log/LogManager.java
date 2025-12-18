@@ -48,6 +48,8 @@ public class LogManager extends SubsystemBase {
 
   public static LogManager logManager;
 
+  public static boolean isComp;
+
   DataLog log;
   NetworkTable table = NetworkTableInstance.getDefault().getTable("Log");
 
@@ -61,8 +63,11 @@ public class LogManager extends SubsystemBase {
   private Map<String, Integer[]> entryLocationMap = new HashMap<>();
 
   public LogManager() {
+    if (logManager != null) {
+      return;
+    }
     logManager = this;
-
+    isComp = DriverStation.isFMSAttached();
     DataLogManager.start();
     DataLogManager.logNetworkTables(false);
     log = DataLogManager.getLog();
@@ -72,6 +77,15 @@ public class LogManager extends SubsystemBase {
     log("log manager is ready");
   }
 
+  /**
+   * Ensures the LogManager singleton exists.
+   * calling this allows usage without explicit instantiation in RobotContainer.
+   */
+  private static void initializeIfNeeded() {
+    if (logManager == null) {
+      new LogManager();
+    }
+  }
 
   /**
    * Creates a log entry builder for StatusSignal-based logging (CTRE Phoenix 6).
@@ -84,7 +98,8 @@ public class LogManager extends SubsystemBase {
    */
   @SuppressWarnings("unchecked")
   public static <T> LogEntryBuilder<T> addEntry(String name, StatusSignal<T>... statusSignals) {
-      return new LogEntryBuilder<T>(name, statusSignals);
+    initializeIfNeeded();
+    return new LogEntryBuilder<T>(name, statusSignals);
   }
 
   /**
@@ -98,6 +113,7 @@ public class LogManager extends SubsystemBase {
    */
   @SuppressWarnings("unchecked")
   public static <T> LogEntryBuilder<T> addEntry(String name, Supplier<T>... suppliers) {
+    initializeIfNeeded();
     return new LogEntryBuilder<T>(name, suppliers);
   }
 
@@ -108,6 +124,7 @@ public class LogManager extends SubsystemBase {
    * and improve loop timing. Data continues to be logged to file.</p>
    */
   public static void removeInComp() {
+    initializeIfNeeded();
     for (int i = 0; i < logManager.individualLogEntries.size(); i++) {
       logManager.individualLogEntries.get(i).removeInComp();
       if (logManager.individualLogEntries.get(i).logLevel == LogLevel.LOG_ONLY_NOT_IN_COMP) {
@@ -132,6 +149,7 @@ public class LogManager extends SubsystemBase {
    * Clears all log entries. Useful for testing or hot-reload scenarios.
    */
   public static void clearEntries() {
+    initializeIfNeeded();
     if (logManager != null) {
       logManager.individualLogEntries.clear();
       for (int i = 0; i < logManager.categoryLogEntries.length; i++) {
@@ -150,6 +168,7 @@ public class LogManager extends SubsystemBase {
    * @return Number of entries being logged
    */
   public static int getEntryCount() {
+    initializeIfNeeded();
     if (logManager == null) return 0;
 
     int count = logManager.individualLogEntries.size();
@@ -168,6 +187,7 @@ public class LogManager extends SubsystemBase {
    * @return The log entry, or null if not found
    */
   public static LogEntry<?> findEntry(String name) {
+    initializeIfNeeded();
     if (logManager == null) return null;
     
     Integer[] location = logManager.entryLocationMap.get(name);
@@ -196,6 +216,7 @@ public class LogManager extends SubsystemBase {
    * @return true if entry was found and removed, false otherwise
    */
   public static boolean removeEntry(String name) {
+    initializeIfNeeded();
       if (logManager == null) return false;
       
       Integer[] location = logManager.entryLocationMap.get(name);
@@ -260,6 +281,7 @@ public class LogManager extends SubsystemBase {
    * @return ConsoleAlert object for additional control
    */
   public static ConsoleAlert log(Object message, AlertType alertType) {
+    initializeIfNeeded();
     DataLogManager.log(String.valueOf(message));
     
     ConsoleAlert alert = new ConsoleAlert(String.valueOf(message), alertType);
@@ -279,6 +301,7 @@ public class LogManager extends SubsystemBase {
    * @return ConsoleAlert object
    */
   public static ConsoleAlert log(Object message) {
+    initializeIfNeeded();
     return log(message, AlertType.kInfo);
   }
 

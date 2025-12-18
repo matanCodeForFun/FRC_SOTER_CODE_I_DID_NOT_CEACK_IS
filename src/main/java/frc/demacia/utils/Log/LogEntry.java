@@ -28,7 +28,6 @@ import edu.wpi.first.util.datalog.StringLogEntry;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import frc.demacia.utils.Data;
 import frc.demacia.utils.Log.LogEntryBuilder.LogLevel;
-import frc.robot.RobotContainer;
 
 public class LogEntry<T> {
 
@@ -65,7 +64,7 @@ public class LogEntry<T> {
 
         this.entry = createLogEntry(logManager.log, name, metaData);
 
-        if (logLevel == LogLevel.LOG_AND_NT || (logLevel == LogLevel.LOG_AND_NT_NOT_IN_COMP && !RobotContainer.isComp())) {
+        if (logLevel == LogLevel.LOG_AND_NT || (logLevel == LogLevel.LOG_AND_NT_NOT_IN_COMP && !LogManager.isComp)) {
             this.ntPublisher = createPublisher(logManager.table, name);
         } else {
             this.ntPublisher = null;
@@ -87,7 +86,7 @@ public class LogEntry<T> {
 
         entry = createLogEntry(logManager.log, this.name, this.metaData);
 
-        if (logLevel == LogLevel.LOG_AND_NT || (logLevel == LogLevel.LOG_AND_NT_NOT_IN_COMP && !RobotContainer.isComp())) {
+        if (logLevel == LogLevel.LOG_AND_NT || (logLevel == LogLevel.LOG_AND_NT_NOT_IN_COMP && !LogManager.isComp)) {
             ntPublisher = createPublisher(logManager.table, this.name);
         } else {
             ntPublisher = null;
@@ -230,7 +229,7 @@ public class LogEntry<T> {
         if (ntPublisher != null) ntPublisher.close();
 
         entry = createLogEntry(logManager.log, name, metaData);
-        if (logLevel == LogLevel.LOG_AND_NT || (logLevel == LogLevel.LOG_AND_NT_NOT_IN_COMP && !RobotContainer.isComp())) {
+        if (logLevel == LogLevel.LOG_AND_NT || (logLevel == LogLevel.LOG_AND_NT_NOT_IN_COMP && !LogManager.isComp)) {
             ntPublisher = createPublisher(logManager.table, name);
         } else {
             ntPublisher = null;

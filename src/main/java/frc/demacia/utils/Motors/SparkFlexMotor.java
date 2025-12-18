@@ -12,11 +12,11 @@ import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import frc.demacia.utils.GlobalContext;
 import frc.demacia.utils.UpdateArray;
 import frc.demacia.utils.Utilities;
 import frc.demacia.utils.Log.LogManager;
 import frc.demacia.utils.Log.LogEntryBuilder.LogLevel;
-import frc.robot.RobotContainer;
 
 public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterface {
 
@@ -31,7 +31,6 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
   private double lastVelocity;
   private double lastAcceleration;
   private double setPoint = 0;
-  private int lastCycleNum = 0;
   private double lastTime = 0;
 
   public SparkFlexMotor(frc.demacia.utils.Motors.SparkFlexConfig config) {
@@ -344,12 +343,12 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
 
   public double getCurrentVelocity() {
     double velocity = getEncoder().getVelocity();
-    if (lastCycleNum != RobotContainer.N_CYCLE) {
-      lastCycleNum = RobotContainer.N_CYCLE;
-      double time = Timer.getFPGATimestamp();
-      lastAcceleration = (velocity - lastVelocity) / (time - lastTime);
-      lastTime = time;
-      lastVelocity = velocity;
+    double time = Timer.getFPGATimestamp();
+    double dt = time - lastTime;
+    if (dt  >=  GlobalContext.getCycleTime()) {
+        lastAcceleration = (velocity - lastVelocity) / dt;
+        lastTime = time;
+        lastVelocity = velocity;
     }
     return velocity;
   }

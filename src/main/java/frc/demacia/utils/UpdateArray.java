@@ -5,6 +5,8 @@ import java.util.function.Consumer;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 
 /**
  * Dashboard widget for hot-reloading array values.
@@ -54,7 +56,9 @@ public class UpdateArray {
                     builder.addDoubleProperty(d.name, d::get, d::update);
                 }
                 builder.addBooleanProperty("Update", () -> false,
-                        (value) -> {System.out.println("update"); if(value) {update.accept(data);}});
+                        (value) -> {System.out.println("update"); 
+                        if(value) {
+                            CommandScheduler.getInstance().schedule(new InstantCommand(() -> update.accept(data)).ignoringDisable(true));}});
             }
         });
     }

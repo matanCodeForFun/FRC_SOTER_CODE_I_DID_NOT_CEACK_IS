@@ -63,7 +63,7 @@ class CloseLoopParam {
     }
 
     public void set(CloseLoopParam other) {
-        parameters = other.parameters.clone();
+        System.arraycopy(other.parameters, 0, this.parameters, 0, 7);
     }
 
     public double[] toArray() {

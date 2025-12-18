@@ -156,7 +156,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
 
     @SuppressWarnings("unchecked")
     private void addLog() {
-        LogManager.addEntry(name + " Position, Velocity, Acceleration, Voltage, Current, CloseLoopError, CloseLoopSP",  new StatusSignal[] {
+        LogManager.addEntry(name + ": Position, Velocity, Acceleration, Voltage, Current, CloseLoopError, CloseLoopSP",  new StatusSignal[] {
             positionSignal.getSignal(),
             velocitySignal.getSignal(),
             accelerationSignal.getSignal(),

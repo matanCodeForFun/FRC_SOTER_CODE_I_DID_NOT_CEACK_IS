@@ -51,8 +51,12 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
     cfg.inverted(config.inverted);
     cfg.idleMode(config.brake ? SparkBaseConfig.IdleMode.kBrake : SparkBaseConfig.IdleMode.kCoast);
     cfg.voltageCompensation(config.maxVolt);
-    cfg.encoder.positionConversionFactor(config.motorRatio);
-    cfg.encoder.velocityConversionFactor(config.motorRatio / 60);
+    if (config.motorRatio != 0) {
+      double positionFactor = 1.0 / config.motorRatio;
+      double velocityFactor = positionFactor / 60.0;
+      cfg.encoder.positionConversionFactor(positionFactor);
+      cfg.encoder.velocityConversionFactor(velocityFactor);
+  }
     updatePID(false);
     if (config.maxVelocity != 0) {
       cfg.closedLoop.maxMotion.maxVelocity(config.maxVelocity).maxAcceleration(config.maxAcceleration);
@@ -74,25 +78,28 @@ public class SparkFlexMotor extends SparkFlex implements Sendable, MotorInterfac
 
   @SuppressWarnings("unchecked")
   private void addLog() {
-    LogManager.addEntry(name + " Position, Velocity, Acceleration, Voltage, Current, CloseLoopError, CloseLoopSP", 
-      () -> new double[] {
-        getCurrentPosition(),
-        getCurrentVelocity(),
-        getCurrentAcceleration(),
-        getCurrentVoltage(),
-        getCurrentCurrent(),
-        getCurrentClosedLoopError(),
-        getCurrentClosedLoopSP(),
-      }).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP)
-      .withIsMotor().build();
+    LogManager.addEntry(name + ": Position, Velocity, Acceleration, Voltage, Current, CloseLoopError, CloseLoopSP", 
+        () -> getCurrentPosition(),
+        () -> getCurrentVelocity(),
+        () -> getCurrentAcceleration(),
+        () -> getCurrentVoltage(),
+        () -> getCurrentCurrent(),
+        () -> getCurrentClosedLoopError(),
+        () -> getCurrentClosedLoopSP()
+      ).withLogLevel(LogLevel.LOG_ONLY_NOT_IN_COMP)
+      .withIsMotor()
+      .build();
   }
 
   public void checkElectronics() {
     Faults faults = getFaults();
-    if (faults != null) {
-        LogManager.log(name + " have fault num: " + faults.toString(), AlertType.kError);
+    boolean hasFault = faults.other || faults.motorType || faults.sensor || 
+      faults.can || faults.temperature;
+
+    if (hasFault) {
+        LogManager.log(name + " Fault Detected: " + faults.toString(), AlertType.kError);
     }
-}
+  }
 
   /**
    * change the slot of the pid and feed forward.

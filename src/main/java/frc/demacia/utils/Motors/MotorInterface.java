@@ -152,7 +152,7 @@ public interface MotorInterface {
      * 
      * @param position Target position in configured units
      */
-    void setMotionWithFeedForward(double velocity);
+    void setMotionWithFeedForward(double position);
 
     /**
      * Gets the current control mode as a human-readable string.

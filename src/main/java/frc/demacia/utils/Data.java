@@ -150,18 +150,8 @@ public class Data<T> {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void handleArraySupplier(T value, Supplier<T>[] supplier) {
         isArray = true;
-        int arrayLength = java.lang.reflect.Array.getLength(value);
-        
-        oldSupplier = new Supplier[arrayLength];
-        final T finalValue = value;
-        for (int i = 0; i < arrayLength; i++){
-            final int index = i;
-            oldSupplier[i] = () -> (T) java.lang.reflect.Array.get(finalValue, index);
-        }
-        
         detectArrayType(value);
     }
 
@@ -219,8 +209,15 @@ public class Data<T> {
         if (signal != null) return length;
 
         if (currentValues == null || currentValues.length == 0) return 0;
-        if (isArray && currentValues[0] != null && currentValues[0].getClass().isArray()) {
-            return java.lang.reflect.Array.getLength(currentValues[0]);
+        
+        if (isArray) {
+            int total = 0;
+            for(T val : currentValues) {
+                if (val != null && val.getClass().isArray()) {
+                    total += java.lang.reflect.Array.getLength(val);
+                }
+            }
+            return total > 0 ? total : 0;
         }
         return length;
     }
@@ -656,10 +653,19 @@ public class Data<T> {
     private double[] toDoubleArray(T[] value){
         if (value == null) return null;
 
-        int currentLength = (isArray && value[0] != null) ? java.lang.reflect.Array.getLength(value[0]) : length;
+        int totalSize = 0;
+        if (isArray) {
+            for (T val : value) {
+                if (val != null) {
+                    totalSize += java.lang.reflect.Array.getLength(val);
+                }
+            }
+        } else {
+            totalSize = length;
+        }
 
-        if (cachedDoubleArray == null || cachedDoubleArray.length != currentLength) {
-            cachedDoubleArray = new double[currentLength];
+        if (cachedDoubleArray == null || cachedDoubleArray.length != totalSize) {
+            cachedDoubleArray = new double[totalSize];
         }
 
         if (!isArray) {
@@ -671,9 +677,15 @@ public class Data<T> {
                 }
             }
         } else {
-            for (int i = 0; i < currentLength; i++) {
-                Object elem = java.lang.reflect.Array.get(value[0], i);
-                cachedDoubleArray[i] = (elem != null) ? ((Number) elem).doubleValue() : 0.0;
+            int offset = 0;
+            for (T val : value) {
+                if (val != null) {
+                    int len = java.lang.reflect.Array.getLength(val);
+                    for (int i = 0; i < len; i++) {
+                        Object elem = java.lang.reflect.Array.get(val, i);
+                        cachedDoubleArray[offset++] = (elem != null) ? ((Number) elem).doubleValue() : 0.0;
+                    }
+                }
             }
         }
         return cachedDoubleArray;
@@ -690,21 +702,34 @@ public class Data<T> {
 
     private float[] toFloatArray(T[] value){
         if (value == null) return null;
-        if (isArray){
-            int arrayLength = java.lang.reflect.Array.getLength(value[0]);
-            if (cachedFloatArray == null || cachedFloatArray.length != arrayLength) {
-                cachedFloatArray = new float[arrayLength];
-            }
-            for (int i = 0; i < arrayLength; i++) {
-                Object elem = java.lang.reflect.Array.get(value[0], i);
-                cachedFloatArray[i] = (elem != null) ? ((Number) elem).floatValue() : 0f;
+        
+        int totalSize = 0;
+        if (isArray) {
+            for (T val : value) {
+                if (val != null) totalSize += java.lang.reflect.Array.getLength(val);
             }
         } else {
-            if (cachedFloatArray == null || cachedFloatArray.length != length) {
-                cachedFloatArray = new float[length];
-            }
+            totalSize = length;
+        }
+
+        if (cachedFloatArray == null || cachedFloatArray.length != totalSize) {
+            cachedFloatArray = new float[totalSize];
+        }
+
+        if (!isArray) {
             for (int i = 0; i < length; i++) {
                 cachedFloatArray[i] = (value[i] != null) ? ((Number) value[i]).floatValue() : 0f;
+            }
+        } else {
+            int offset = 0;
+            for (T val : value) {
+                if (val != null) {
+                    int len = java.lang.reflect.Array.getLength(val);
+                    for (int i = 0; i < len; i++) {
+                        Object elem = java.lang.reflect.Array.get(val, i);
+                        cachedFloatArray[offset++] = (elem != null) ? ((Number) elem).floatValue() : 0f;
+                    }
+                }
             }
         }
         return cachedFloatArray;
@@ -713,10 +738,17 @@ public class Data<T> {
     private boolean[] toBooleanArray(T[] value){
         if (value == null) return null;
 
-        int currentLength = (isArray && value[0] != null) ? java.lang.reflect.Array.getLength(value[0]) : length;
+        int totalSize = 0;
+        if (isArray) {
+            for (T val : value) {
+                if (val != null) totalSize += java.lang.reflect.Array.getLength(val);
+            }
+        } else {
+            totalSize = length;
+        }
 
-        if (cachedBooleanArray == null || cachedBooleanArray.length != currentLength) {
-             cachedBooleanArray = new boolean[currentLength];
+        if (cachedBooleanArray == null || cachedBooleanArray.length != totalSize) {
+             cachedBooleanArray = new boolean[totalSize];
         }
         
         if (!isArray) {
@@ -724,9 +756,15 @@ public class Data<T> {
                  cachedBooleanArray[i] = (value[i] != null) && (Boolean) value[i];
             }
         } else {
-            for (int i = 0; i < currentLength; i++) {
-                Object elem = java.lang.reflect.Array.get(value[0], i);
-                cachedBooleanArray[i] = (elem != null) && (Boolean) elem;
+            int offset = 0;
+            for (T val : value) {
+                if (val != null) {
+                    int len = java.lang.reflect.Array.getLength(val);
+                    for (int i = 0; i < len; i++) {
+                        Object elem = java.lang.reflect.Array.get(val, i);
+                        cachedBooleanArray[offset++] = (elem != null) && (Boolean) elem;
+                    }
+                }
             }
         }
         return cachedBooleanArray;
@@ -735,26 +773,37 @@ public class Data<T> {
     private String[] toStringArray(T[] value){
         if (value == null) return null;
 
-        if (isArray){
-            int arrayLength = java.lang.reflect.Array.getLength(value[0]);
-            if (cachedStringArray == null || cachedStringArray.length != arrayLength) {
-                cachedStringArray = new String[arrayLength];
-            }
-            for (int i = 0; i < arrayLength; i++) {
-                Object elem = java.lang.reflect.Array.get(value[0], i);
-                cachedStringArray[i] = (elem != null) ? elem.toString() : null;
+        int totalSize = 0;
+        if (isArray) {
+            for (T val : value) {
+                if (val != null) totalSize += java.lang.reflect.Array.getLength(val);
             }
         } else {
-            if (cachedStringArray == null || cachedStringArray.length != length) {
-                cachedStringArray = new String[length];
-            }
+            totalSize = length;
+        }
+
+        if (cachedStringArray == null || cachedStringArray.length != totalSize) {
+            cachedStringArray = new String[totalSize];
+        }
+        
+        if (!isArray) {
             for (int i = 0; i < length; i++) {
                 cachedStringArray[i] = (value[i] != null) ? value[i].toString() : null;
+            }
+        } else {
+            int offset = 0;
+            for (T val : value) {
+                if (val != null) {
+                    int len = java.lang.reflect.Array.getLength(val);
+                    for (int i = 0; i < len; i++) {
+                        Object elem = java.lang.reflect.Array.get(val, i);
+                        cachedStringArray[offset++] = (elem != null) ? elem.toString() : null;
+                    }
+                }
             }
         }
         return cachedStringArray;
     }
-
     public void cleanup() {
         signal = null;
         supplier = null;

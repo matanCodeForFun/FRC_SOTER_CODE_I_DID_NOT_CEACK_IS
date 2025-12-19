@@ -103,14 +103,13 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
         }
         if(apply) {
             getConfigurator().apply(cfg.MotionMagic);
-            System.out.println(" motion param " + config.maxVelocity + " , " + config.maxAcceleration + " k=" 
+            LogManager.log(" motion param " + config.maxVelocity + " , " + config.maxAcceleration + " k=" 
                 + cfg.MotionMagic.MotionMagicExpo_kV + ", " + cfg.MotionMagic.MotionMagicExpo_kA);
         }
 
     }
 
     private void updatePID(boolean apply) {
-        System.out.println("update PID");
         cfg.Slot0.kP = config.pid[0].kp();
         cfg.Slot0.kI = config.pid[0].ki();
         cfg.Slot0.kD = config.pid[0].kd();
@@ -393,7 +392,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
                 configMotor();
                 changeSlot(slot);
     
-                System.out.println("[HOT RELOAD] Motor config updated for " + name);
+                LogManager.log("[HOT RELOAD] Motor config updated for " + name);
             }
         );
     }
@@ -438,7 +437,7 @@ public class TalonFXMotor extends TalonFX implements MotorInterface {
                         setMotionWithFeedForward(value);
                         break;
                     default:
-                        System.out.println("[CONTROL] Invalid mode: " + mode);
+                        LogManager.log("[CONTROL] Invalid mode: " + mode);
                 }
             }
         );

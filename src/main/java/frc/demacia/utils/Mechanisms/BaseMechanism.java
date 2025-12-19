@@ -7,6 +7,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -53,18 +54,20 @@ import frc.demacia.utils.Sensors.SensorInterface;
  */
 public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
     public static class MechanismAction {
-        protected String name;
-        protected Supplier<double[]> valuesChanger;
-        protected List<BiConsumer<MotorInterface[], double[]>> motorAndValuesInitializes;
-        protected List<Consumer<MotorInterface[]>> motorInitializes;
-        protected List<Runnable> runnableInitializes;
-        protected List<BiConsumer<MotorInterface[], double[]>> motorAndValuesExecutes;
-        protected List<Consumer<MotorInterface[]>> motorExecutes;
-        protected List<Runnable> runnableExecutes;
-        protected List<Supplier<Boolean>> finishes;
-        protected List<BiConsumer<MotorInterface[], double[]>> motorAndValuesEnds;
-        protected List<Consumer<MotorInterface[]>> motorEnds;
-        protected List<Runnable> runnableEnds;
+        private String name;
+        private Supplier<double[]> valuesChanger;
+        private List<BiConsumer<MotorInterface[], double[]>> motorAndValuesInitializes;
+        private List<Consumer<MotorInterface[]>> motorInitializes;
+        private List<Runnable> runnableInitializes;
+        private List<BiConsumer<MotorInterface[], double[]>> motorAndValuesExecutes;
+        private List<Consumer<MotorInterface[]>> motorExecutes;
+        private List<Runnable> runnableExecutes;
+        private List<Supplier<Boolean>> finishes;
+        private List<BiConsumer<MotorInterface[], double[]>> motorAndValuesEnds;
+        private List<Consumer<MotorInterface[]>> motorEnds;
+        private List<Runnable> runnableEnds;
+
+        private boolean isCalibrateCommand;
 
         public MechanismAction(String name, Supplier<double[]> valuesChanger){
             
@@ -149,6 +152,18 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
             return this;
         }
 
+        public MechanismAction withTime(double seconds) {
+            Timer timer = new Timer();
+            
+            this.runnableInitializes.add(() -> {
+                timer.restart();
+            });
+            
+            this.finishes.add(() -> timer.hasElapsed(seconds));
+            
+            return this;
+        }
+
         public MechanismAction withEnd(BiConsumer<MotorInterface[], double[]> consumer){
             if (consumer == null) {
                 throw new NullPointerException("End consumer cannot be null");
@@ -178,6 +193,11 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
                 throw new NullPointerException("Values supplier cannot be null");
             }
             this.valuesChanger = valuesChanger;
+            return this;
+        }
+
+        public MechanismAction setIsCalibrateCommand(boolean isCalibrateCommand){
+            this.isCalibrateCommand = isCalibrateCommand;
             return this;
         }
 
@@ -228,6 +248,10 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
         public List<Runnable> getRunnableEnds(){
             return runnableEnds;
         }
+
+        public boolean getIsCalibrateCommand(){
+            return isCalibrateCommand;
+        }
     }
 
     public static class MotorLimits {
@@ -257,12 +281,35 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
         }
     }
 
-    public static MechanismAction creatAction(String name, Supplier<double[]> valuesChanger){
+    public static MechanismAction createAction(String name, Supplier<double[]> valuesChanger){
         return new MechanismAction(name, valuesChanger);
     }
 
-    public static MechanismAction creatAction(String name, double[] values){
+    public static MechanismAction createAction(String name, double[] values){
         return new MechanismAction(name, values);
+    }
+    
+    public MechanismAction createCalibrationAction(int motorIndex, double power, Supplier<Boolean> stopCondition, double resetVal, double upPower, double sec){
+        if (!isValidMotorIndex(motorIndex)) {
+            throw new IllegalArgumentException("Invalid motor index: " + motorIndex);
+        }
+
+        Timer timer = new Timer();
+        double[] values = new double[motors.length];
+
+        Supplier<double[]> powersChanger = () -> {
+            values[motorIndex] = (timer.get() < sec) ? upPower : power;
+            return values;
+        };
+        return new MechanismAction(name + " Calibration2", powersChanger)
+            .setIsCalibrateCommand(true)
+            .withInitialize(() -> setNeutralModeAll(true))
+            .withInitialize(() -> timer.reset())
+            .withInitialize(() -> timer.start())
+            .withExecute((m, p) -> m[motorIndex].setDuty(p[motorIndex]))
+            .withFinish(stopCondition)
+            .withEnd(() -> {getMotor(motorIndex).setEncoderPosition(resetVal);})
+            .withEnd(() -> {isCalibratedSupplier = () -> true;});
     }
 
     protected String name;
@@ -402,6 +449,9 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
 
     @SuppressWarnings("unchecked")
     public T withAction(MechanismAction action){
+        if (!action.getIsCalibrateCommand()) {
+            action.withExecute(consumer);
+        }
         actions.put(action.getName(), action);
         actionCommands.put(action.getName(), actionCommand(action.getName()));
         return (T) this;
@@ -428,6 +478,7 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
             throw new IllegalArgumentException("Invalid motor index: " + motorIndex);
         }
         trigger.onTrue(new Command() {
+            { addRequirements(BaseMechanism.this); }
             @Override
             public void execute() {
                 getMotor(motorIndex).setDuty(joystick.get());
@@ -488,12 +539,11 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
 
             @Override
             public void execute() {
-                if (stopSupplier.get()) {
+                if (stopSupplier.get() || (!isCalibratedSupplier.get() && !action.getIsCalibrateCommand())) {
                     stopAll();
                     return; 
                 }
                 double[] currentValues = process(action.getValues());
-                consumer.accept(motors, currentValues);
                 for (BiConsumer<MotorInterface[], double[]> motorAndValuesExecute : action.getMotorAndValuesExecutes()){
                     motorAndValuesExecute.accept(motors, currentValues);
                 }

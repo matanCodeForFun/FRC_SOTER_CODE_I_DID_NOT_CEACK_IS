@@ -76,16 +76,16 @@ public class BaseMechanism<T extends BaseMechanism<T>> extends SubsystemBase{
             }
             this.name = name;
             this.valuesChanger = valuesChanger;
-            this.motorAndValuesInitializes = new ArrayList<>();
-            this.motorInitializes = new ArrayList<>();
-            this.runnableInitializes = new ArrayList<>();
-            this.motorAndValuesExecutes = new ArrayList<>();
-            this.motorExecutes = new ArrayList<>();
-            this.runnableExecutes = new ArrayList<>();
-            this.finishes = new ArrayList<>();
-            this.motorAndValuesEnds = new ArrayList<>();
-            this.motorEnds = new ArrayList<>();
-            this.runnableEnds = new ArrayList<>();
+            motorAndValuesInitializes = new ArrayList<>();
+            motorInitializes = new ArrayList<>();
+            runnableInitializes = new ArrayList<>();
+            motorAndValuesExecutes = new ArrayList<>();
+            motorExecutes = new ArrayList<>();
+            runnableExecutes = new ArrayList<>();
+            finishes = new ArrayList<>();
+            motorAndValuesEnds = new ArrayList<>();
+            motorEnds = new ArrayList<>();
+            runnableEnds = new ArrayList<>();
         }
         
         public MechanismAction(String name, double[] values){

@@ -18,6 +18,8 @@ import frc.demacia.utils.Motors.BaseMotorConfig.Canbus;
 
 public final class Constants {
 
+    public static final double MAX_VELOCITY = 0;
+    public static final double LOW_VELOCITY = 0;
 
     public static final int SOTER_MOTOR_ID = 15;
     public static final Canbus SOTER_MOTOR_CANBUS = Canbus.Rio;

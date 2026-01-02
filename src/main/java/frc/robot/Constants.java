@@ -65,16 +65,11 @@ public final class Constants {
     public static final double KA_ANGLE = 0;
     public static final double KG_ANGLE = 0;
 
-    public static final double MAX_VELOCITY_ANGLE = 0;
-    public static final double MAX_ACCELERATION_ANGLE = 0;
-    public static final double MAX_JERK_ANGLE = 0;
-
     public static final double GEARE_RATIO_ANGLE = 0;
 
     public static final TalonFXConfig SOTER_ANGLE_MOTOR_CONFIG = new TalonFXConfig(SOTER_ANGLE_MOTOR_ID, SOTER_ANGLE_MOTOR_CANBUS, SOTER_ANGLE_MOTOR_NAME)
     .withBrake(true)
     .withPID(KP_ANGLE, KI_ANGLE, KD_ANGLE, KS_ANGLE, KV_ANGLE, KA_ANGLE, KG_ANGLE)
-    .withMotionParam(MAX_VELOCITY_ANGLE, MAX_ACCELERATION_ANGLE, MAX_JERK_ANGLE)
     .withRadiansMotor(GEARE_RATIO_ANGLE);
     
 

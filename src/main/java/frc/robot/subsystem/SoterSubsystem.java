@@ -8,8 +8,12 @@ import frc.demacia.utils.Motors.TalonFXMotor;
 import frc.demacia.utils.Sensors.DigitalEncoder;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.demacia.utils.Log.LogManager;
+import frc.demacia.utils.Log.LogEntryBuilder.LogLevel;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 
 public class SoterSubsystem extends SubsystemBase {
   /** Creates a new SoterSubsystem. */
@@ -24,8 +28,24 @@ public class SoterSubsystem extends SubsystemBase {
       soterAngleMotor = new TalonFXMotor(Constants.SOTER_ANGLE_MOTOR_CONFIG);
       encoder = new DigitalEncoder(Constants.SOTER_ANGLE_ENCODER_CONFIG);
       soterAngleMotor.setEncoderPosition(getEncoderAngle());
+      putData();
+
+      SmartDashboard.putData(getName() + "/shoting", new InstantCommand(() -> setSoting(false), this));
     }
   
+    @SuppressWarnings("unchecked")
+    public void putData(){
+      LogManager.addEntry("sother", () -> (new boolean[]{
+        isSoting()
+      })).withLogLevel(LogLevel.LOG_AND_NT_NOT_IN_COMP).build();
+
+      LogManager.addEntry("angle's", () -> (new double[]{
+        getEncoderAngle(),
+        getMotorAngle()
+      })).withLogLevel(LogLevel.LOG_AND_NT_NOT_IN_COMP).build();
+      
+    }
+
     public double getEncoderAngle(){
       return encoder.get();
     }
@@ -71,7 +91,7 @@ public class SoterSubsystem extends SubsystemBase {
     public void setSoting(boolean soting){
       isSoting = soting;
     }
-    
+
     public boolean isSoting(){
       return isSoting;
   }

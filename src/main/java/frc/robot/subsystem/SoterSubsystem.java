@@ -4,13 +4,21 @@
 
 package frc.robot.subsystem;
 
+import frc.demacia.utils.Motors.TalonFXMotor;
+
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
 
 public class SoterSubsystem extends SubsystemBase {
   /** Creates a new SoterSubsystem. */
-  public SoterSubsystem() {}
 
-  
+  TalonFXMotor soterMotor;
+
+  public SoterSubsystem() {
+    soterMotor = new TalonFXMotor(Constants.SOTER_MOTOR_CONFIG);
+  }
+
+
 
   @Override
   public void periodic() {

@@ -11,6 +11,7 @@ import frc.demacia.utils.Controller.CommandController;
 import frc.demacia.utils.Controller.CommandController.ControllerType;
 import frc.robot.subsystem.SoterSubsystem;
 import frc.robot.commands.SoterCommand;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -47,7 +48,7 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
-    controller.rightButton().whenPressed(() -> soterSubsystem.setSoting(true));
+    controller.rightButton().onTrue(new InstantCommand(() -> soterSubsystem.setSoting(true)));
   }
 
   /**

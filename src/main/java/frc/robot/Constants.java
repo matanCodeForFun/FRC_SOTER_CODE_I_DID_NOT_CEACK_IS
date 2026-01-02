@@ -13,6 +13,7 @@ package frc.robot;
  */
 
 import frc.demacia.utils.Motors.TalonFXConfig;
+import frc.demacia.utils.Sensors.DigitalEncoderConfig;
 import frc.demacia.utils.Motors.BaseMotorConfig.Canbus;
 
 public final class Constants {
@@ -68,4 +69,13 @@ public final class Constants {
     .withMotionParam(MAX_VELOCITY_ANGLE, MAX_ACCELERATION_ANGLE, MAX_JERK_ANGLE)
     .withRadiansMotor(GEARE_RATIO_ANGLE);
     
+
+    public static final int SOTER_ANGLE_ENCODER_CHANNEL = 0;
+    public static final String SOTER_ANGLE_ENCODER_NAME = "Soter Angle Encoder";
+
+    public static final double SOTER_ANGLE_ENCODER_OFFSET = 0;
+
+    public static final DigitalEncoderConfig SOTER_ANGLE_ENCODER_CONFIG = new DigitalEncoderConfig(SOTER_ANGLE_ENCODER_CHANNEL, SOTER_ANGLE_ENCODER_NAME)
+    .withInvert(false)
+    .withOffset(SOTER_ANGLE_ENCODER_OFFSET);
 }

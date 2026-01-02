@@ -13,12 +13,19 @@ public class SoterSubsystem extends SubsystemBase {
   /** Creates a new SoterSubsystem. */
 
   TalonFXMotor soterMotor;
+  TalonFXMotor soterAngleMotor;
 
   public SoterSubsystem() {
     soterMotor = new TalonFXMotor(Constants.SOTER_MOTOR_CONFIG);
+    soterAngleMotor = new TalonFXMotor(Constants.SOTER_ANGLE_MOTOR_CONFIG);
+  }
+
+  public void setSoerAngle(double wontedAngle){
+    soterAngleMotor.setAngle(wontedAngle);
   }
 
 
+  
 
   @Override
   public void periodic() {

@@ -6,6 +6,9 @@ package frc.robot.subsystem;
 
 import frc.demacia.utils.Motors.TalonFXMotor;
 import frc.demacia.utils.Sensors.DigitalEncoder;
+
+import java.lang.annotation.Target;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
@@ -52,10 +55,14 @@ public class SoterSubsystem extends SubsystemBase {
     return Math.sqrt(Math.pow(targetY- roboty, 2) + Math.pow(trgetX - robotx, 2));
   }
 
-  public double CalcolateAngle(double verbosity, double gravity, double trgetHeight, double trgetX, double targetY, double robotx, double roboty){
-    double CalcolateDistanceToTarget = Math.sqrt(Math.pow(targetY- roboty, 2) + Math.pow(trgetX - robotx, 2));
+  public double CalcolateAngle(double verbosity, double gravity, double trgetHeight, double trgetX, double targetY, double robotx, double roboty, double CalcolateDistanceToTarget){
     double root = (Math.sqrt(Math.pow(verbosity,4) - gravity * (gravity * Math.pow(CalcolateDistanceToTarget,2) + 2 * trgetHeight * Math.pow(verbosity,2))));
     return Math.atan(Math.pow(verbosity,2) + root / (gravity * CalcolateDistanceToTarget));
+  }
+
+  public double calclateVelocity(double DistanceToTarget, double trgetHeight, double angle, double gravity, double TargetHeight, double wheelDiameter){
+    double VelocityInSoter = Math.sqrt((gravity * Math.pow(DistanceToTarget, 2) / 2 * Math.pow(Math.cos(angle), 2) * (DistanceToTarget * Math.tan(angle) - TargetHeight)));
+    return VelocityInSoter * 60 /Math.PI * wheelDiameter;
   }
 
   @Override

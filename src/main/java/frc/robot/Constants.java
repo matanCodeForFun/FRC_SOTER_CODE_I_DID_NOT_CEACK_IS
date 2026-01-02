@@ -12,6 +12,7 @@ package frc.robot;
  * constants are needed, to reduce verbosity.
  */
 
+import edu.wpi.first.math.geometry.Pose2d;
 import frc.demacia.utils.Motors.TalonFXConfig;
 import frc.demacia.utils.Sensors.DigitalEncoderConfig;
 import frc.demacia.utils.Motors.BaseMotorConfig.Canbus;
@@ -20,6 +21,8 @@ public final class Constants {
 
     public static final double MAX_VELOCITY = 0;
     public static final double LOW_VELOCITY = 0;
+
+    public static final Pose2d TARGET_POSE2D = new Pose2d(0, 0,  null);
 
     public static final int SOTER_MOTOR_ID = 15;
     public static final Canbus SOTER_MOTOR_CANBUS = Canbus.Rio;

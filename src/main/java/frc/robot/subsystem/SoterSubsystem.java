@@ -48,6 +48,15 @@ public class SoterSubsystem extends SubsystemBase {
     soterMotor.setDuty(power);
   }
 
+  public double CalcolateDistanceToTarget(double trgetX, double targetY, double robotx, double roboty){
+    return Math.sqrt(Math.pow(targetY- roboty, 2) + Math.pow(trgetX - robotx, 2));
+  }
+
+  public double CalcolateAngle(double verbosity, double gravity, double trgetHeight, double trgetX, double targetY, double robotx, double roboty){
+    double CalcolateDistanceToTarget = Math.sqrt(Math.pow(targetY- roboty, 2) + Math.pow(trgetX - robotx, 2));
+    double root = (Math.sqrt(Math.pow(verbosity,4) - gravity * (gravity * Math.pow(CalcolateDistanceToTarget,2) + 2 * trgetHeight * Math.pow(verbosity,2))));
+    return Math.atan(Math.pow(verbosity,2) + root / (gravity * CalcolateDistanceToTarget));
+  }
 
   @Override
   public void periodic() {

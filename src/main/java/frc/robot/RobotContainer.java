@@ -6,8 +6,11 @@ package frc.robot;
 
 import frc.demacia.utils.Log.LogManager;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.demacia.utils.Controller.CommandController;
+import frc.demacia.utils.Controller.CommandController.ControllerType;
+import frc.robot.subsystem.SoterSubsystem;
+import frc.robot.commands.SoterCommand;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -18,13 +21,17 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 public class RobotContainer {
 
   // The robot's subsystems and commands are defined here...
-
-
+  public static final SoterSubsystem soterSubsystem = new SoterSubsystem();
+  public static final SoterCommand soterCommand = new SoterCommand(soterSubsystem);
+  private final CommandController controller;
   // Replace with CommandPS4Controller or CommandJoystick if needed
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
     new LogManager();
+
+    controller = new CommandController(0,ControllerType.kPS5);
+    soterSubsystem.setDefaultCommand(soterCommand);
 
     // Configure the trigger bindings
     configureBindings();
@@ -40,7 +47,7 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
-    
+    controller.rightButton().whenPressed(() -> soterSubsystem.setSoting(true));
   }
 
   /**

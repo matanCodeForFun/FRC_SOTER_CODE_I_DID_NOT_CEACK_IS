@@ -29,26 +29,26 @@ public class SoterCommand extends Command {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    DistanceToTarget = Soter.CalcolateDistanceToTarget(Constants.TARGET_POSE2D, null);
-    Angle = Soter.CalcolateAngle(0, Constants.GEAVITY, Constants.TARGET_HEIGHT, DistanceToTarget);
-    VelocitySotter = Soter.calclateVelocitySoter(DistanceToTarget, Constants.TARGET_HEIGHT, Angle, Constants.GEAVITY, Constants.TARGET_HEIGHT);
-    verbosityMotor = Soter.calclateVelocityMotor(Constants.wheelDiameter, VelocitySotter);
+
   }
 
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    Soter.CalcolateDistanceToTarget(Constants.TARGET_POSE2D, null);
-    Soter.CalcolateAngle(VelocitySotter, Constants.GEAVITY, Constants.TARGET_HEIGHT, DistanceToTarget);
-    Soter.calclateVelocitySoter(DistanceToTarget, Constants.TARGET_HEIGHT, Angle, Constants.GEAVITY, Constants.TARGET_HEIGHT);
-    Soter.calclateVelocityMotor(Constants.wheelDiameter, VelocitySotter);
-    Soter.setSoerAngle(Angle);
+    calcalate();
     if(Shoot == true){
       Soter.shot(verbosityMotor);
     } else {
       Soter.stopShoting();
     }
     
+  }
+
+  public void calcalate(){
+    DistanceToTarget = Soter.CalcolateDistanceToTarget(Constants.TARGET_POSE2D, null);
+    Angle = Soter.CalcolateAngle(0, Constants.GEAVITY, Constants.TARGET_HEIGHT, DistanceToTarget);
+    VelocitySotter = Soter.calclateVelocitySoter(DistanceToTarget, Constants.TARGET_HEIGHT, Angle, Constants.GEAVITY, Constants.TARGET_HEIGHT);
+    verbosityMotor = Soter.calclateVelocityMotor(Constants.wheelDiameter, VelocitySotter);
   }
 
   // Called once the command ends or is interrupted.
